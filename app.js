@@ -1,37 +1,17 @@
-alert("✅ app.js is geladen");
-
 const API = "https://vanderlinden.42web.io/api";
 
-const form = document.getElementById("eventForm");
-if (!form) {
-  alert("Formulier niet gevonden (id=eventForm)");
-}
-
-form.addEventListener("submit", async (e) => {
+document.getElementById("eventForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  alert("Opslaan aangeklikt ✅");
+  const formData = new FormData(e.target);
 
-  const formData = new FormData(form);
+  const res = await fetch(API + "/add_event.php", {
+    method: "POST",
+    body: formData
+  });
 
-  try {
-    const res = await fetch(API + "/add_event.php", {
-      method: "POST",
-      body: formData
-    });
+  const data = await res.json();
+  alert(data.message || "Event ingestuurd en wacht op goedkeuring");
 
-    alert("Response ontvangen: HTTP " + res.status);
-
-    const text = await res.text();
-    alert("Server zegt: " + text);
-
-    if (!res.ok) {
-      throw new Error("Server error " + res.status);
-    }
-
-    form.reset();
-  } catch (err) {
-    alert("❌ Fout: " + err.message);
-    console.error(err);
-  }
+  e.target.reset();
 });
