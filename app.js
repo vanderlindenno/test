@@ -1,3 +1,5 @@
+alert("✅ app.js is geladen");
+
 const API = "https://vanderlinden.42web.io/api";
 
 const form = document.getElementById("eventForm");
