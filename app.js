@@ -1,4 +1,4 @@
-const API = "https://YOURDOMAIN.infinityfreeapp.com/api";
+const API = "https://vanderlinden.42web.io/api";
 
 document.getElementById("eventForm").addEventListener("submit", async e => {
   e.preventDefault();
