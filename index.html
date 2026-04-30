@@ -6,13 +6,20 @@
 </head>
 <body>
 <h2>Event toevoegen</h2>
-<form id="eventForm">
+<form
+  action="https://vanderlinden.42web.io/api/add_event.php"
+  method="POST"
+  enctype="multipart/form-data"
+>
   <input name="title" placeholder="Titel" required>
   <input type="date" name="date" required>
   <input name="location" placeholder="Plaats" required>
+
   <textarea name="description" placeholder="Beschrijving"></textarea>
+
   <input type="file" name="photo">
   <input name="contact" placeholder="Contactpersoon">
+
   <button type="submit">Opslaan</button>
 </form>
 <h2>Events</h2>
