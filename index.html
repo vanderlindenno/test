@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>Events</title>
+</head>
+<body>
+<h2>Event toevoegen</h2>
+<form id="eventForm">
+  <input name="title" placeholder="Titel" required>
+  <input type="date" name="date" required>
+  <input name="location" placeholder="Plaats" required>
+  <textarea name="description" placeholder="Beschrijving"></textarea>
+  <input type="file" name="photo">
+  <input name="contact" placeholder="Contactpersoon">
+  <button type="submit">Opslaan</button>
+</form>
+<h2>Events</h2>
+<div id="events"></div>
+<script src="app.js"></script>
+</body>
+</html>
