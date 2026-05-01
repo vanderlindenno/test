@@ -1,91 +1,70 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="nb">
 <head>
 <meta charset="UTF-8">
-<title>Evenementen i Agder</title>
+<title>Arrangementer det kommende året</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body{
-  margin:2rem;
-  font-family:system-ui,sans-serif;
-  background:#f2f2f2;
+  font-family: system-ui, sans-serif;
+  background:#f5f5f5;
+  padding:2rem;
 }
-
-h1{margin-bottom:1rem;}
-
-input{
+h1{
+  margin-bottom:1rem;
+}
+table{
   width:100%;
-  max-width:420px;
-  padding:.6rem .8rem;
-  border-radius:8px;
-  border:1px solid #ccc;
-  margin-bottom:2rem;
-}
-
-.month{margin-bottom:3rem;}
-.month h2{margin-bottom:1rem;}
-
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
-  gap:1.5rem;
-}
-
-.card{
+  border-collapse:collapse;
   background:#fff;
-  border-radius:16px;
-  overflow:hidden;
-  box-shadow:0 6px 16px rgba(0,0,0,.08);
+}
+th, td{
+  padding:.6rem;
+  border-bottom:1px solid #ddd;
+  text-align:left;
+  vertical-align:top;
+}
+th{
+  background:#f0f0f0;
+}
+tr.clickable{
   cursor:pointer;
 }
-
-.card img{
-  width:100%;
-  height:190px;
-  object-fit:cover;
-  background:#e0e0e0;
-}
-
-.content{padding:1.2rem;}
-
-.date{
-  font-size:.8rem;
-  font-weight:600;
-  color:#444;
-}
-
-.place{
-  font-size:.75rem;
-  color:#666;
+tr.clickable:hover{
+  background:#f7f7f7;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Evenementen i Agder</h1>
-<input id="search" placeholder="Zoek op titel, plaats of tekst…">
-<div id="events">Evenementen laden…</div>
+<h1>Arrangementer det kommende året</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Dato</th>
+      <th>Sted</th>
+      <th>Arrangement</th>
+    </tr>
+  </thead>
+  <tbody id="arrangementer">
+    <tr>
+      <td colspan="3">Laster arrangementer…</td>
+    </tr>
+  </tbody>
+</table>
 
 <script>
-/* ===== config ===== */
-
 const API =
- "https://www.markedsdager.no/wp-json/wp/v2/event" +
- "?eventcat=30&per_page=50&_jsonp=handleEvents";
+  "https://www.markedsdager.no/wp-json/wp/v2/event" +
+  "?eventcat=30&per_page=50&_jsonp=visArrangementer";
 
-const FALLBACK_IMAGE =
- "https://www.markedsdager.no/wp-content/uploads/2023/05/markedsdager_fallback.jpg";
-
-const MONTHS={
+const MONTHS = {
   januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
   juli:6,august:7,september:8,oktober:9,november:10,desember:11
 };
-
-let ALL_EVENTS = [];
-
-/* ===== helpers ===== */
 
 function strip(html){
   const d=document.createElement("div");
@@ -93,140 +72,81 @@ function strip(html){
   return d.textContent.trim();
 }
 
-function extractDate(text){
+function finnDato(text){
   const m=text.toLowerCase().match(
-    /(\d{1,2})(?:\.\s*(?:–|-)\s*(\d{1,2}))?\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
+    /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
   );
   if(!m) return null;
 
-  const day=parseInt(m[1],10);
-  const month=MONTHS[m[3]];
-  const year=m[4]?parseInt(m[4],10):new Date().getFullYear();
+  const dag=parseInt(m[1],10);
+  const mnd=MONTHS[m[2]];
+  const aar=m[3]?parseInt(m[3],10):new Date().getFullYear();
 
-  let date=new Date(year,month,day);
-
-  if(!m[4] && date < new Date()){
-    date = new Date(year+1,month,day);
+  let dato=new Date(aar,mnd,dag);
+  if(!m[3] && dato < new Date()){
+    dato=new Date(aar+1,mnd,dag);
   }
-  return date;
+  return dato;
 }
 
-function extractPlace(classes=[]){
+function finnSted(classes=[]){
   const c=classes.find(x=>x.startsWith("location-"));
   return c ? c.replace("location-","").replace(/-/g," ") : "";
 }
 
-/* ===== ROBUUSTE IMAGE LOADER (fix lege kaarten) ===== */
+function visArrangementer(events){
+  const tbody=document.getElementById("arrangementer");
+  tbody.innerHTML="";
 
-function loadImage(id, img){
-  // ✅ altijd eerst fallback
-  img.src = FALLBACK_IMAGE;
+  const idag=new Date(); idag.setHours(0,0,0,0);
+  const ettAarFrem=new Date(idag);
+  ettAarFrem.setFullYear(idag.getFullYear()+1);
 
-  if(!id) return;
-
-  const cb = "media_" + id;
-
-  window[cb] = data => {
-    if(data?.source_url){
-      const test = new Image();
-      test.onload = ()=> img.src = data.source_url;
-      test.onerror = ()=> img.src = FALLBACK_IMAGE;
-      test.src = data.source_url;
-    }
-    delete window[cb];
-  };
-
-  const s=document.createElement("script");
-  s.src=
-    "https://www.markedsdager.no/wp-json/wp/v2/media/" +
-    id + "?_jsonp=" + cb;
-  document.body.appendChild(s);
-}
-
-/* ===== RENDER ===== */
-
-function render(filter=""){
-  const container=document.getElementById("events");
-  container.innerHTML="";
-  const grouped={};
-
-  ALL_EVENTS
-    .filter(e=>e.search.includes(filter.toLowerCase()))
-    .sort((a,b)=>a.date-b.date)
-    .forEach(e=>{
-      const key=e.date.getFullYear()+"-"+e.date.getMonth();
-      (grouped[key] ||= []).push(e);
-    });
-
-  Object.keys(grouped).forEach(key=>{
-    const d=grouped[key][0].date;
-    const month=document.createElement("div");
-    month.className="month";
-    month.innerHTML=
-      `<h2>${d.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})}</h2>
-       <div class="grid"></div>`;
-    const grid=month.querySelector(".grid");
-
-    grouped[key].forEach(e=>{
-      const img=document.createElement("img");
-      loadImage(e.media,img);
-
-      const card=document.createElement("div");
-      card.className="card";
-      card.innerHTML=`
-        <img>
-        <div class="content">
-          <div class="date">${e.date.toLocaleDateString("nl-NL")}</div>
-          <h3>${e.title}</h3>
-          <p>${e.excerpt}</p>
-          <div class="place">${e.place}</div>
-        </div>`;
-      card.querySelector("img").replaceWith(img);
-      card.onclick=()=>window.open(e.link,"_blank");
-      grid.appendChild(card);
-    });
-
-    container.appendChild(month);
-  });
-
-  if(!container.innerHTML){
-    container.textContent="Geen evenementen gevonden.";
-  }
-}
-
-/* ===== DATA ===== */
-
-function handleEvents(events){
-  const today=new Date(); today.setHours(0,0,0,0);
-  const oneYearLater=new Date(today);
-  oneYearLater.setFullYear(today.getFullYear()+1);
-
-  ALL_EVENTS = events
+  const liste = events
     .map(e=>{
-      const text=strip(e.title.rendered+" "+e.excerpt.rendered+" "+e.content.rendered);
-      const date=extractDate(text);
-      if(!date) return null;
-      if(date<today || date>oneYearLater) return null;
+      const tekst = strip(
+        e.title.rendered + " " +
+        e.excerpt.rendered + " " +
+        e.content.rendered
+      );
+      const dato = finnDato(tekst);
+      if(!dato) return null;
+      if(dato < idag || dato > ettAarFrem) return null;
 
       return {
-        title:strip(e.title.rendered),
-        excerpt:strip(e.excerpt.rendered),
-        link:e.link,
-        date,
-        place:extractPlace(e.class_list),
-        media:e.featured_media,
-        search:text.toLowerCase()
+        dato,
+        sted: finnSted(e.class_list),
+        tittel: strip(e.title.rendered),
+        beskrivelse: strip(e.excerpt.rendered),
+        link: e.link
       };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .sort((a,b)=>a.dato-b.dato);
 
-  render();
+  if(!liste.length){
+    tbody.innerHTML =
+      "<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
+    return;
+  }
+
+  liste.forEach(a=>{
+    const tr=document.createElement("tr");
+    tr.className="clickable";
+    tr.onclick=()=>window.open(a.link,"_blank");
+
+    tr.innerHTML=`
+      <td>${a.dato.toLocaleDateString("nb-NO")}</td>
+      <td>${a.sted}</td>
+      <td>
+        <strong>${a.tittel}</strong><br>
+        ${a.beskrivelse}
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
 }
-
-document.getElementById("search").oninput =
-  e=>render(e.target.value);
-
-/* ===== JSONP start ===== */
 
 const s=document.createElement("script");
 s.src=API;
@@ -235,3 +155,4 @@ document.body.appendChild(s);
 
 </body>
 </html>
+``
