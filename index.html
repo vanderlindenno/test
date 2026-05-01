@@ -12,10 +12,6 @@ body {
   background: #f2f2f2;
 }
 
-h1 {
-  margin-bottom: 2rem;
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -24,34 +20,10 @@ h1 {
 
 .card {
   background: white;
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0,0,0,.08);
-}
-
-.card img {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  background: #ddd;
-}
-
-.content {
+  border-radius: 16px;
   padding: 1.2rem;
-}
-
-.content h3 {
-  margin-top: 0;
-}
-
-.label {
-  display: inline-block;
-  margin-top: .6rem;
-  padding: .3rem .7rem;
-  font-size: .75rem;
-  border-radius: 999px;
-  background: #f0f0f0;
-  border: 1px solid #ccc;
+  box-shadow: 0 6px 16px rgba(0,0,0,.08);
+  cursor: pointer;
 }
 </style>
 </head>
@@ -62,31 +34,18 @@ h1 {
 <div id="events">Evenementen laden…</div>
 
 <script>
-const API =
-  "https://www.markedsdager.no/wp-json/wp/v2/event?eventcat=30&per_page=20";
-
 function strip(html) {
   const d = document.createElement("div");
   d.innerHTML = html;
   return d.textContent.trim();
 }
 
-async function getImage(mediaId) {
-  if (!mediaId) return null;
-  const r = await fetch(
-    "https://www.markedsdager.no/wp-json/wp/v2/media/" + mediaId
-  );
-  const m = await r.json();
-  return m.source_url || null;
-}
-
-fetch(API)
-.then(r => r.json())
-.then(async events => {
+// JSONP callback
+function showEvents(events) {
   const container = document.getElementById("events");
   container.innerHTML = "";
 
-  if (!events.length) {
+  if (!events || !events.length) {
     container.textContent = "Geen evenementen gevonden.";
     return;
   }
@@ -94,31 +53,26 @@ fetch(API)
   const grid = document.createElement("div");
   grid.className = "grid";
 
-  for (const event of events) {
-    const img = await getImage(event.featured_media);
-
+  events.forEach(e => {
     const card = document.createElement("div");
     card.className = "card";
-
     card.innerHTML = `
-      ${img ? `<img src="${img}"   <div class="content">
-        <h3>${strip(event.title.rendered)}</h3>
-        <p>${strip(event.excerpt.rendered)}</p>
-        <span class="label">Agder</span>
-      </div>
+      <h3>${strip(e.title.rendered)}</h3>
+      <p>${strip(e.excerpt.rendered)}</p>
     `;
-
-    card.onclick = () => window.open(event.link, "_blank");
+    card.onclick = () => window.open(e.link, "_blank");
     grid.appendChild(card);
-  }
+  });
 
   container.appendChild(grid);
-})
-.catch(err => {
-  document.getElementById("events").textContent =
-    "Fout bij laden van evenementen.";
-  console.error(err);
-});
+}
+
+// JSONP script injectie
+const script = document.createElement("script");
+script.src =
+  "https://www.markedsdager.no/wp-json/wp/v2/event" +
+  "?eventcat=30&per_page=20&_jsonp=showEvents";
+document.body.appendChild(script);
 </script>
 
 </body>
