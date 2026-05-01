@@ -12,9 +12,7 @@ body{
   padding:2rem;
 }
 
-h1{
-  margin-bottom:1rem;
-}
+h1{margin-bottom:1rem;}
 
 table{
   width:100%;
@@ -29,37 +27,23 @@ th, td{
   vertical-align:top;
 }
 
-th{
-  background:#f0f0f0;
-}
+th{background:#f0f0f0;}
 
-tbody tr:nth-child(even){
-  background-color:#f3f6f3;
-}
+tbody tr:nth-child(even){background:#f3f6f3;}
+tbody tr:nth-child(odd){background:#ffffff;}
 
-tbody tr:nth-child(odd){
-  background-color:#ffffff;
-}
+tr.clickable{cursor:pointer;}
+tr.clickable:hover{background:#e8eee8;}
 
-tr.clickable{
-  cursor:pointer;
-}
-
-tr.clickable:hover{
-  background-color:#e8eee8;
-}
-
-/* 🌿 Kommende helg-markering */
+/* 🌿 Kommende helg */
 tr.kommende-helg{
-  background-color:#dfeee2 !important;
+  background:#dfeee2 !important;
   border-left:6px solid #4d7c57;
 }
-
 .badge{
-  display:inline-block;
-  margin-left:0.5rem;
-  padding:0.2rem 0.5rem;
-  font-size:0.7rem;
+  margin-left:.5rem;
+  padding:.2rem .5rem;
+  font-size:.7rem;
   background:#4d7c57;
   color:#fff;
   border-radius:4px;
@@ -80,18 +64,16 @@ tr.kommende-helg{
     </tr>
   </thead>
   <tbody id="arrangementer">
-    <tr>
-      <td colspan="3">Laster arrangementer…</td>
-    </tr>
+    <tr><td colspan="3">Laster arrangementer…</td></tr>
   </tbody>
 </table>
 
 <script>
 const API =
-  "https://www.markedsdager.no/wp-json/wp/v2/event" +
-  "?eventcat=30&per_page=50&_jsonp=visArrangementer";
+ "https://www.markedsdager.no/wp-json/wp/v2/event" +
+ "?eventcat=30&per_page=50&_jsonp=visArrangementer";
 
-const MONTHS = {
+const MONTHS={
   januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
   juli:6,august:7,september:8,oktober:9,november:10,desember:11
 };
@@ -102,18 +84,28 @@ function strip(html){
   return d.textContent.trim();
 }
 
-function formatDato(dato){
-  const dager=[
-    "søndag","mandag","tirsdag",
-    "onsdag","torsdag","fredag","lørdag"
-  ];
-  const mnd=[
-    "januar","februar","mars","april","mai","juni",
-    "juli","august","september","oktober","november","desember"
-  ];
-  return `${dager[dato.getDay()]} ${dato.getDate()}. ${mnd[dato.getMonth()]} ${dato.getFullYear()}`;
+/* ✅ korrekt stedvisning */
+function kapitaliserSted(sted){
+  return sted
+    .split(" ")
+    .map(o => o.charAt(0).toUpperCase() + o.slice(1).toLowerCase())
+    .join(" ")
+    .replace(/\bOg\b/g,"og");   // ✅ fast mapping
 }
 
+function finnSted(classes=[]){
+  const c=classes.find(x=>x.startsWith("location-"));
+  return c ? kapitaliserSted(c.replace("location-","").replace(/-/g," ")) : "";
+}
+
+/* ✅ norsk dato */
+function formatDato(d){
+  const dager=["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lørdag"];
+  const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
+  return `${dager[d.getDay()]} ${d.getDate()}. ${mnd[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/* ✅ hent dato fra tekst */
 function finnDato(text){
   const m=text.toLowerCase().match(
     /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
@@ -121,50 +113,34 @@ function finnDato(text){
   if(!m) return null;
 
   const dag=parseInt(m[1],10);
-  const mnd=MONTHS[m[2]];
   const aar=m[3]?parseInt(m[3],10):new Date().getFullYear();
-
-  let dato=new Date(aar,mnd,dag);
-  if(!m[3] && dato < new Date()){
-    dato=new Date(aar+1,mnd,dag);
-  }
+  let dato=new Date(aar,MONTHS[m[2]],dag);
+  if(!m[3] && dato<new Date()) dato=new Date(aar+1,MONTHS[m[2]],dag);
   return dato;
 }
 
-function finnSted(classes=[]){
-  const c=classes.find(x=>x.startsWith("location-"));
-  return c ? c.replace("location-","").replace(/-/g," ") : "";
-}
-
-/* ✅ beregn kommende helg */
-function kommendeHelg(dato){
-  const idag=new Date();
-  idag.setHours(0,0,0,0);
-
+/* ✅ kommende helg */
+function kommendeHelg(d){
+  const idag=new Date(); idag.setHours(0,0,0,0);
   const fredag=new Date(idag);
-  fredag.setDate(idag.getDate() + ((5 - idag.getDay() + 7) % 7));
-
-  const sunday=new Date(fredag);
-  sunday.setDate(fredag.getDate() + 2);
-
-  return dato >= fredag && dato <= sunday;
+  fredag.setDate(idag.getDate()+((5-idag.getDay()+7)%7));
+  const søndag=new Date(fredag); søndag.setDate(fredag.getDate()+2);
+  return d>=fredag && d<=søndag;
 }
 
+/* ✅ render */
 function visArrangementer(events){
   const tbody=document.getElementById("arrangementer");
   tbody.innerHTML="";
 
   const idag=new Date(); idag.setHours(0,0,0,0);
-  const ettAarFrem=new Date(idag);
-  ettAarFrem.setFullYear(idag.getFullYear()+1);
+  const ettAar=new Date(idag); ettAar.setFullYear(idag.getFullYear()+1);
 
-  const liste = events
+  events
     .map(e=>{
       const tekst=strip(e.title.rendered+" "+e.excerpt.rendered+" "+e.content.rendered);
       const dato=finnDato(tekst);
-      if(!dato) return null;
-      if(dato < idag || dato > ettAarFrem) return null;
-
+      if(!dato || dato<idag || dato>ettAar) return null;
       return {
         dato,
         sted:finnSted(e.class_list),
@@ -174,35 +150,24 @@ function visArrangementer(events){
       };
     })
     .filter(Boolean)
-    .sort((a,b)=>a.dato-b.dato);
+    .sort((a,b)=>a.dato-b.dato)
+    .forEach(a=>{
+      const tr=document.createElement("tr");
+      tr.className="clickable";
+      if(kommendeHelg(a.dato)) tr.classList.add("kommende-helg");
+      tr.onclick=()=>window.open(a.link,"_blank");
 
-  if(!liste.length){
+      tr.innerHTML=`
+        <td>${formatDato(a.dato)}${kommendeHelg(a.dato)?" <span class='badge'>Kommende helg</span>":""}</td>
+        <td>${a.sted}</td>
+        <td><strong>${a.tittel}</strong><br>${a.tekst}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  if(!tbody.innerHTML){
     tbody.innerHTML="<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
-    return;
   }
-
-  liste.forEach(a=>{
-    const tr=document.createElement("tr");
-    tr.className="clickable";
-    tr.onclick=()=>window.open(a.link,"_blank");
-
-    if(kommendeHelg(a.dato)){
-      tr.classList.add("kommende-helg");
-    }
-
-    tr.innerHTML=`
-      <td>
-        ${formatDato(a.dato)}
-        ${kommendeHelg(a.dato) ? "<span class='badge'>Kommende helg</span>" : ""}
-      </td>
-      <td>${a.sted}</td>
-      <td>
-        <strong>${a.tittel}</strong><br>
-        ${a.tekst}
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
 
 const s=document.createElement("script");
