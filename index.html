@@ -2,8 +2,7 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <title>Evenementen in Agder</title>
-
+  <title>Evenementen Agder</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -14,7 +13,29 @@
     }
 
     h1 {
+      margin-bottom: 1rem;
+    }
+
+    .filters {
       margin-bottom: 2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    select {
+      padding: .6rem .8rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: .9rem;
+    }
+
+    .month {
+      margin-bottom: 3rem;
+    }
+
+    .month h2 {
+      margin: 1rem 0;
     }
 
     .grid {
@@ -28,20 +49,15 @@
       border-radius: 18px;
       overflow: hidden;
       box-shadow: 0 8px 20px rgba(0,0,0,.08);
+      cursor: pointer;
       display: flex;
       flex-direction: column;
-      transition: transform .15s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-4px);
     }
 
     .card img {
       width: 100%;
       height: 210px;
       object-fit: cover;
-      background: #ddd;
     }
 
     .content {
@@ -49,52 +65,53 @@
       flex-grow: 1;
     }
 
-    .content h2 {
-      font-size: 1.15rem;
-      margin: 0 0 0.6rem 0;
+    .content h3 {
+      font-size: 1.1rem;
+      margin: 0 0 .5rem;
     }
 
     .content p {
-      font-size: 0.95rem;
+      font-size: .95rem;
       color: #555;
-      line-height: 1.45;
+      line-height: 1.4;
     }
 
     .labels {
       display: flex;
+      gap: .5rem;
       flex-wrap: wrap;
-      gap: 0.5rem;
       margin-top: 1rem;
     }
 
     .label {
-      font-size: 0.75rem;
-      padding: 0.35rem 0.8rem;
+      font-size: .75rem;
+      padding: .35rem .8rem;
       border-radius: 999px;
-      border: 1px solid #d0d0d0;
+      border: 1px solid #ccc;
       background: #f7f7f7;
-      white-space: nowrap;
-    }
-
-    .empty {
-      color: #555;
-      font-size: 1rem;
     }
   </style>
 </head>
 
 <body>
 
-<h1>Evenementen in Agder</h1>
-<div id="events" class="grid">Evenementen laden…</div>
+<h1>Evenementen i Agder</h1>
+
+<div class="filters">
+  <select id="placeFilter">
+    <option value="">Alle plaatsen</option>
+  </select>
+</div>
+
+<div id="events">Evenementen laden…</div>
 
 <script>
   const RSS_URL =
     "https://api.rss2json.com/v1/api.json?rss_url=" +
     encodeURIComponent("https://www.markedsdager.no/eventcat/agder/feed/");
 
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  const TODAY = new Date();
+  TODAY.setHours(0,0,0,0);
 
   const MONTHS = {
     januar:0, februar:1, mars:2, april:3, mai:4, juni:5,
@@ -102,105 +119,129 @@
     november:10, desember:11
   };
 
-  function extractEventDate(item) {
-    const text = (item.title + " " + item.description).toLowerCase();
+  const PLACES = [
+    "Risør","Åmli","Lindesnes","Grimstad","Arendal",
+    "Kristiansand","Tvedestrand","Froland","Lyngdal",
+    "Vennesla","Birkenes","Iveland"
+  ];
 
-    const regex =
-      /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i;
-
-    const match = text.match(regex);
-    if (!match) return null;
-
-    const day = parseInt(match[1], 10);
-    const month = MONTHS[match[2]];
-    let year = match[3] ? parseInt(match[3], 10) : today.getFullYear();
-
-    let date = new Date(year, month, day);
-
-    // geen jaar → als datum al voorbij is, neem volgend jaar
-    if (!match[3] && date < today) {
-      date = new Date(year + 1, month, day);
-    }
-
-    return date;
+  function extractPlaces(text) {
+    return PLACES.filter(place =>
+      text.toLowerCase().includes(place.toLowerCase())
+    );
   }
 
-  function cleanDescription(html) {
-    const el = document.createElement("div");
-    el.innerHTML = html;
+  function extractDates(text) {
+    const dates = [];
+    const regex =
+      /(\d{1,2})\.\s*(?:–|-|til)?\s*(\d{0,2})?\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/gi;
 
-    let text = el.textContent || "";
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const startDay = parseInt(match[1]);
+      const endDay = match[2] ? parseInt(match[2]) : startDay;
+      const month = MONTHS[match[3].toLowerCase()];
+      const year = match[4] ? parseInt(match[4]) : TODAY.getFullYear();
+
+      for (let d = startDay; d <= endDay; d++) {
+        const date = new Date(year, month, d);
+        if (date >= TODAY) dates.push(date);
+      }
+    }
+
+    return dates;
+  }
+
+  function cleanText(html) {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    let text = div.textContent || "";
     text = text.replace(/\s+/g, " ").trim();
-
-    return text.length > 140
-      ? text.slice(0, 140) + "…"
-      : text;
+    return text.length > 140 ? text.slice(0, 140) + "…" : text;
   }
 
   fetch(RSS_URL)
     .then(r => r.json())
     .then(feed => {
-      const events = [];
+      let events = [];
+      const placesSet = new Set();
 
       feed.items.forEach(item => {
-        const eventDate = extractEventDate(item);
-        if (!eventDate) return;
-        if (eventDate < today) return;
+        const text = item.title + " " + item.description;
+        const dates = extractDates(text);
+        if (!dates.length) return;
+
+        const places = extractPlaces(text);
+        places.forEach(p => placesSet.add(p));
 
         events.push({
           title: item.title,
           link: item.link,
           image: item.enclosure?.link || item.thumbnail,
-          description: cleanDescription(item.description),
-          date: eventDate,
-          categories: item.categories || []
+          description: cleanText(item.description),
+          dates,
+          places
         });
       });
 
-      // sorteren op eventdatum
-      events.sort((a, b) => a.date - b.date);
+      // Fill place filter
+      const placeFilter = document.getElementById("placeFilter");
+      [...placesSet].sort().forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p;
+        placeFilter.appendChild(opt);
+      });
 
-      const container = document.getElementById("events");
-      container.innerHTML = "";
+      function render(selectedPlace = "") {
+        const container = document.getElementById("events");
+        container.innerHTML = "";
 
-      if (events.length === 0) {
-        container.innerHTML =
-          '<div class="empty">Geen toekomstige evenementen gevonden.</div>';
-        return;
+        const grouped = {};
+
+        events.forEach(e => {
+          if (selectedPlace && !e.places.includes(selectedPlace)) return;
+
+          e.dates.forEach(date => {
+            const key = date.getFullYear() + "-" + date.getMonth();
+            (grouped[key] ||= []).push({ ...e, date });
+          });
+        });
+
+        Object.keys(grouped).sort().forEach(key => {
+          const date = grouped[key][0].date;
+          const monthDiv = document.createElement("div");
+          monthDiv.className = "month";
+
+          monthDiv.innerHTML =
+            `<h2>${date.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})}</h2>
+             <div class="grid"></div>`;
+
+          const grid = monthDiv.querySelector(".grid");
+
+          grouped[key]
+            .sort((a,b)=>a.date-b.date)
+            .forEach(e => {
+              const card = document.createElement("div");
+              card.className = "card";
+              card.innerHTML = `
+                <img src="${e.image || 'https://via.placeholder.com/600x              <h3>${e.title}</h3>
+                  <p>${e.description}</p>
+                  <div class="labels">
+                    <span class="label">${e.date.toLocaleDateString("nl-NL")}</span>
+                    ${e.places.map(p=>`<span class="label">${p}</span>`).join("")}
+                  </div>
+                </div>`;
+              card.onclick = ()=>window.open(e.link,"_blank");
+              grid.appendChild(card);
+            });
+
+          container.appendChild(monthDiv);
+        });
       }
 
-      events.forEach(e => {
-        const card = document.createElement("div");
-        card.className = "card";
-
-        card.innerHTML = `
-          <img src="${e.image || 'https://via.placeholder.com/600x400?text=Evenement'}"
-              >${e.description}</p>
-            <div class="labels">
-              <span class="label">
-                ${e.date.toLocaleDateString("nl-NL", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric"
-                })}
-              </span>
-              ${e.categories.map(c =>
-                `<span class="label">${c}</span>`
-              ).join("")}
-            </div>
-          </div>
-        `;
-
-        card.addEventListener("click", () => {
-          window.open(e.link, "_blank");
-        });
-
-        container.appendChild(card);
-      });
-    })
-    .catch(() => {
-      document.getElementById("events").innerHTML =
-        '<div class="empty">Evenementen konden niet geladen worden.</div>';
+      placeFilter.onchange = e => render(e.target.value);
+      render();
     });
 </script>
 
