@@ -11,7 +11,9 @@ body{
   font-family:system-ui,sans-serif;
   background:#f2f2f2;
 }
+
 h1{margin-bottom:1rem;}
+
 input{
   width:100%;
   max-width:420px;
@@ -20,13 +22,16 @@ input{
   border:1px solid #ccc;
   margin-bottom:2rem;
 }
+
 .month{margin-bottom:3rem;}
 .month h2{margin-bottom:1rem;}
+
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
   gap:1.5rem;
 }
+
 .card{
   background:#fff;
   border-radius:16px;
@@ -34,18 +39,22 @@ input{
   box-shadow:0 6px 16px rgba(0,0,0,.08);
   cursor:pointer;
 }
+
 .card img{
   width:100%;
   height:190px;
   object-fit:cover;
-  background:#ddd;
+  background:#e0e0e0;
 }
+
 .content{padding:1.2rem;}
+
 .date{
   font-size:.8rem;
   font-weight:600;
   color:#444;
 }
+
 .place{
   font-size:.75rem;
   color:#666;
@@ -60,16 +69,23 @@ input{
 <div id="events">Evenementen laden…</div>
 
 <script>
+/* ===== config ===== */
+
 const API =
  "https://www.markedsdager.no/wp-json/wp/v2/event" +
  "?eventcat=30&per_page=50&_jsonp=handleEvents";
+
+const FALLBACK_IMAGE =
+ "https://www.markedsdager.no/wp-content/uploads/2023/05/markedsdager_fallback.jpg";
 
 const MONTHS={
   januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
   juli:6,august:7,september:8,oktober:9,november:10,desember:11
 };
 
-let ALL_EVENTS=[];
+let ALL_EVENTS = [];
+
+/* ===== helpers ===== */
 
 function strip(html){
   const d=document.createElement("div");
@@ -88,33 +104,50 @@ function extractDate(text){
   const year=m[4]?parseInt(m[4],10):new Date().getFullYear();
 
   let date=new Date(year,month,day);
-  if(!m[4] && date<new Date()) {
-    date=new Date(year+1,month,day);
+
+  if(!m[4] && date < new Date()){
+    date = new Date(year+1,month,day);
   }
   return date;
 }
 
 function extractPlace(classes=[]){
   const c=classes.find(x=>x.startsWith("location-"));
-  return c?c.replace("location-","").replace(/-/g," "):"";
+  return c ? c.replace("location-","").replace(/-/g," ") : "";
 }
 
-function loadImage(id,img){
+/* ===== ROBUUSTE IMAGE LOADER (fix lege kaarten) ===== */
+
+function loadImage(id, img){
+  // ✅ altijd eerst fallback
+  img.src = FALLBACK_IMAGE;
+
   if(!id) return;
-  const cb="media_"+id;
-  window[cb]=d=>{
-    if(d?.source_url) img.src=d.source_url;
+
+  const cb = "media_" + id;
+
+  window[cb] = data => {
+    if(data?.source_url){
+      const test = new Image();
+      test.onload = ()=> img.src = data.source_url;
+      test.onerror = ()=> img.src = FALLBACK_IMAGE;
+      test.src = data.source_url;
+    }
     delete window[cb];
   };
+
   const s=document.createElement("script");
-  s.src="https://www.markedsdager.no/wp-json/wp/v2/media/"+id+"?_jsonp="+cb;
+  s.src=
+    "https://www.markedsdager.no/wp-json/wp/v2/media/" +
+    id + "?_jsonp=" + cb;
   document.body.appendChild(s);
 }
+
+/* ===== RENDER ===== */
 
 function render(filter=""){
   const container=document.getElementById("events");
   container.innerHTML="";
-
   const grouped={};
 
   ALL_EVENTS
@@ -132,7 +165,6 @@ function render(filter=""){
     month.innerHTML=
       `<h2>${d.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})}</h2>
        <div class="grid"></div>`;
-
     const grid=month.querySelector(".grid");
 
     grouped[key].forEach(e=>{
@@ -162,10 +194,10 @@ function render(filter=""){
   }
 }
 
-function handleEvents(events){
-  const today=new Date();
-  today.setHours(0,0,0,0);
+/* ===== DATA ===== */
 
+function handleEvents(events){
+  const today=new Date(); today.setHours(0,0,0,0);
   const oneYearLater=new Date(today);
   oneYearLater.setFullYear(today.getFullYear()+1);
 
@@ -194,6 +226,8 @@ function handleEvents(events){
 document.getElementById("search").oninput =
   e=>render(e.target.value);
 
+/* ===== JSONP start ===== */
+
 const s=document.createElement("script");
 s.src=API;
 document.body.appendChild(s);
@@ -201,4 +235,3 @@ document.body.appendChild(s);
 
 </body>
 </html>
-``
