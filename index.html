@@ -13,25 +13,34 @@
       margin-bottom: 1.5rem;
     }
     .event {
+      display: flex;
+      gap: 1rem;
       background: #fff;
       padding: 1rem;
       margin-bottom: 1rem;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .event a {
+    .event img {
+      width: 150px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .event-content a {
       font-size: 1.1rem;
       font-weight: bold;
       color: #2c3e50;
       text-decoration: none;
     }
-    .event a:hover {
+    .event-content a:hover {
       text-decoration: underline;
     }
-    .event .date {
+    .date {
       font-size: 0.9rem;
       color: #777;
-      margin-bottom: 0.5rem;
+      margin: 0.3rem 0;
     }
   </style>
 </head>
@@ -42,31 +51,39 @@
 
 <script>
   const rssFeed = "https://www.markedsdager.no/eventcat/agder/feed/";
-  const apiUrl = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(rssFeed);
+  const apiUrl = "https://api.rss2json.com/v1/api.json?rss_url=" +
+                 encodeURIComponent(rssFeed);
 
   fetch(apiUrl)
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
       const container = document.getElementById("rss");
       container.innerHTML = "";
 
       data.items.forEach(item => {
+        const image =
+          item.enclosure?.link ||
+          item.thumbnail ||
+          "https://via.placeholder.com/150x100?text=Geen+foto";
+
         const div = document.createElement("div");
         div.className = "event";
-
         div.innerHTML = `
-          ${item.link}${item.title}</a>
-          <div class="date">${new Date(item.pubDate).toLocaleDateString("nl-NL")}</div>
-          <div>${item.description}</div>
+          <img src="${image}"<div class="event-content">
+            ${item.link}${item.title}</a>
+            <div class="date">
+              ${new Date(item.pubDate).toLocaleDateString("nl-NL")}
+            </div>
+            <div>${item.description}</div>
+          </div>
         `;
-
         container.appendChild(div);
       });
     })
-    .catch(error => {
+    .catch(err => {
       document.getElementById("rss").innerText =
-        "Kon de feed niet laden.";
-      console.error(error);
+        "Kon de evenementen niet laden.";
+      console.error(err);
     });
 </script>
 
