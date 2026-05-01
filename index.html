@@ -1,57 +1,57 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <title>Evenementen i Agder</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>Evenementen i Agder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body {
-      margin: 2rem;
-      font-family: system-ui, sans-serif;
-      background: #f2f2f2;
-    }
-    h1 { margin-bottom: 1rem; }
+<style>
+body {
+  margin: 2rem;
+  font-family: system-ui, sans-serif;
+  background: #f2f2f2;
+}
+h1 { margin-bottom: 2rem; }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 1.5rem;
-    }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
 
-    .card {
-      background: white;
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 8px 20px rgba(0,0,0,.08);
-      cursor: pointer;
-    }
+.card {
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+  cursor: pointer;
+}
 
-    .card img {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-    }
+.card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
 
-    .content {
-      padding: 1.2rem;
-    }
+.content {
+  padding: 1.2rem;
+}
 
-    .labels {
-      display: flex;
-      gap: .5rem;
-      flex-wrap: wrap;
-      margin-top: 1rem;
-    }
+.labels {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
 
-    .label {
-      font-size: .75rem;
-      padding: .35rem .8rem;
-      border-radius: 999px;
-      border: 1px solid #ccc;
-      background: #f7f7f7;
-    }
-  </style>
+.label {
+  font-size: .75rem;
+  padding: .35rem .8rem;
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  background: #f7f7f7;
+}
+</style>
 </head>
 
 <body>
@@ -61,7 +61,7 @@
 
 <script>
 const API =
-  "https://www.markedsdager.no/wp-json/wp/v2/posts?per_page=50&categories=23&_embed";
+  "https://www.markedsdager.no/wp-json/wp/v2/event?_embed&eventcat=agder&per_page=50";
 
 function strip(html) {
   const d = document.createElement("div");
@@ -71,51 +71,46 @@ function strip(html) {
 
 fetch(API)
 .then(r => r.json())
-.then(posts => {
+.then(events => {
   const container = document.getElementById("events");
   container.innerHTML = "";
+
+  if (!events.length) {
+    container.textContent = "Geen evenementen gevonden.";
+    return;
+  }
+
   const grid = document.createElement("div");
   grid.className = "grid";
 
-  posts.forEach(post => {
-    // featured image
-    const img =
-      post._embedded?.["wp:featuredmedia"]?.[0]?.source_url ||
+  events.forEach(event => {
+    const image =
+      event._embedded?.["wp:featuredmedia"]?.[0]?.source_url ||
       "https://via.placeholder.com/600x400?text=Evenement";
-
-    // event data via custom fields (zoals site zelf)
-    const start = post.acf?.start_date || post.meta?.start_date;
-    const end   = post.acf?.end_date   || post.meta?.end_date;
-    const place = post.acf?.place      || post.meta?.place;
-
-    const dateLabel = start
-      ? start + (end ? " – " + end : "")
-      : "Datum zie website";
 
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML = `
-      ${img}
+      ${image}
       <div class="content">
-        <h3>${strip(post.title.rendered)}</h3>
-        <p>${strip(post.excerpt.rendered)}</p>
+        <h3>${strip(event.title.rendered)}</h3>
+        <p>${strip(event.excerpt.rendered)}</p>
         <div class="labels">
-          <span class="label">${dateLabel}</span>
-          ${place ? `<span class="label">${place}</span>` : ""}
+          <span class="label">Markedsdager</span>
+          <span class="label">Agder</span>
         </div>
       </div>
     `;
 
-    card.onclick = () => window.open(post.link, "_blank");
-
+    card.onclick = () => window.open(event.link, "_blank");
     grid.appendChild(card);
   });
 
   container.appendChild(grid);
 })
 .catch(() => {
-  document.getElementById("events").innerText =
-    "Kon evenementen niet laden.";
+  document.getElementById("events").textContent =
+    "Fout bij laden van evenementen.";
 });
 </script>
 
