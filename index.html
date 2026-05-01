@@ -6,9 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-/* =====================
-   BASIS
-   ===================== */
 body{
   font-family: system-ui, sans-serif;
   background:#f5f5f5;
@@ -16,32 +13,25 @@ body{
   margin:0;
 }
 
-h1{
-  margin-bottom:1rem;
-}
+h1{margin-bottom:1rem;}
 
-/* =====================
-   TABEL (DESKTOP)
-   ===================== */
 table{
   width:100%;
   border-collapse:collapse;
-  background:#ffffff;
+  background:#fff;
 }
 
-th, td{
-  padding:0.75rem 0.6rem;
+th,td{
+  padding:.75rem .6rem;
   border-bottom:1px solid #ddd;
   text-align:left;
   vertical-align:top;
 }
 
-th{
-  background:#f0f0f0;
-}
+th{background:#f0f0f0;}
 
 tbody tr:nth-child(even){background:#f3f6f3;}
-tbody tr:nth-child(odd){background:#ffffff;}
+tbody tr:nth-child(odd){background:#fff;}
 
 tr.clickable{cursor:pointer;}
 tr.clickable:hover{background:#e8eee8;}
@@ -61,57 +51,36 @@ tr.kommende-helg{
 }
 
 .year{
-  font-size:0.8rem;
+  font-size:.8rem;
   color:#555;
 }
 
-/* =====================
-   MOBIEL KAARTLAYOUT
-   ===================== */
-@media (max-width:700px){
+/* ===== MOBIL ===== */
+@media(max-width:700px){
+  body{padding:1rem;}
 
-  body{
-    padding:1rem;
-  }
-
-  table, thead, tbody, tr, td{
-    display:block;
-  }
-
-  thead{
-    display:none;
-  }
+  table,thead,tbody,tr,td{display:block;}
+  thead{display:none;}
 
   tbody tr{
     margin-bottom:1rem;
-    padding:0.75rem;
+    padding:.75rem;
     border-radius:12px;
     box-shadow:0 2px 8px rgba(0,0,0,.06);
   }
 
   td{
     border:none;
-    padding:0.3rem 0;
+    padding:.3rem 0;
   }
 
   td::before{
     content:attr(data-label);
     display:block;
-    font-size:0.7rem;
+    font-size:.7rem;
+    font-weight:600;
     text-transform:uppercase;
-    font-weight:600;
     color:#666;
-    margin-bottom:0.1rem;
-  }
-
-  td:first-child{
-    font-size:1rem;
-    font-weight:600;
-  }
-
-  .badge{
-    display:inline-block;
-    margin-top:0.3rem;
   }
 }
 </style>
@@ -144,42 +113,22 @@ const MONTHS={
   juli:6,august:7,september:8,oktober:9,november:10,desember:11
 };
 
+const DAGINDEX={
+  søndag:0,mandag:1,tirsdag:2,onsdag:3,
+  torsdag:4,fredag:5,lørdag:6
+};
+
 function strip(html){
   const d=document.createElement("div");
   d.innerHTML=html;
   return d.textContent.trim();
 }
 
-function finnType(tittel){
-  const t=tittel.toLowerCase();
-  if(t.includes("bondens marked")) return "bondens marked";
-  if(t.includes("høstmarked")) return "høstmarked";
-  if(t.includes("julemarked")) return "julemarked";
-  if(t.includes("fotballcup")) return "fotballcup";
-  return t;
-}
-
-function kapitaliserSted(sted){
-  return sted
-    .split(" ")
-    .map(o=>o.charAt(0).toUpperCase()+o.slice(1).toLowerCase())
-    .join(" ")
-    .replace(/\bOg\b/g,"og");
-}
-
-function finnSted(classes=[]){
-  const c=classes.find(x=>x.startsWith("location-"));
-  return c ? kapitaliserSted(c.replace("location-","").replace(/-/g," ")) : "";
-}
-
-function formatDato(d){
-  const dager=["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
-  const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
-
-  return `
-    ${dager[d.getDay()]} ${d.getDate()}. ${mnd[d.getMonth()]}
-    <div class="year">${d.getFullYear()}</div>
-  `;
+function finnUkedag(text){
+  const m=text.toLowerCase().match(
+    /(søndag|mandag|tirsdag|onsdag|torsdag|fredag|lørdag)/
+  );
+  return m ? DAGINDEX[m[1]] : null;
 }
 
 function finnDato(text){
@@ -191,16 +140,32 @@ function finnDato(text){
   const dag=parseInt(m[1],10);
   const aar=m[3]?parseInt(m[3],10):new Date().getFullYear();
   let dato=new Date(aar,MONTHS[m[2]],dag);
-  if(!m[3] && dato<new Date()) dato=new Date(aar+1,MONTHS[m[2]],dag);
+
+  const idag=new Date();
+  idag.setHours(0,0,0,0);
+
+  if(!m[3] && dato<idag)
+    dato=new Date(aar+1,MONTHS[m[2]],dag);
+
   return dato;
 }
 
 function kommendeHelg(d){
-  const idag=new Date(); idag.setHours(0,0,0,0);
-  const fredag=new Date(idag);
-  fredag.setDate(idag.getDate()+((5-idag.getDay()+7)%7));
-  const søndag=new Date(fredag); søndag.setDate(fredag.getDate()+2);
+  const i=new Date(); i.setHours(0,0,0,0);
+  const fredag=new Date(i);
+  fredag.setDate(i.getDate()+((5-i.getDay()+7)%7));
+  const søndag=new Date(fredag);
+  søndag.setDate(fredag.getDate()+2);
   return d>=fredag && d<=søndag;
+}
+
+function formatDato(d){
+  const dager=["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
+  const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
+  return `
+    ${dager[d.getDay()]} ${d.getDate()}. ${mnd[d.getMonth()]}
+    <div class="year">${d.getFullYear()}</div>
+  `;
 }
 
 function visArrangementer(events){
@@ -208,25 +173,38 @@ function visArrangementer(events){
   tbody.innerHTML="";
 
   const idag=new Date(); idag.setHours(0,0,0,0);
-  const ettAar=new Date(idag); ettAar.setFullYear(idag.getFullYear()+1);
+  const ettAar=new Date(idag);
+  ettAar.setFullYear(idag.getFullYear()+1);
 
   const brukt=new Set();
 
   events
     .map(e=>{
-      const tekst=strip(e.title.rendered+" "+e.excerpt.rendered+" "+e.content.rendered);
+      const tekst=strip(
+        e.title.rendered+" "+
+        e.excerpt.rendered+" "+
+        e.content.rendered
+      );
+
       const dato=finnDato(tekst);
       if(!dato || dato<idag || dato>ettAar) return null;
 
-      const sted=finnSted(e.class_list);
-      const tittel=strip(e.title.rendered);
-      const type=finnType(tittel);
+      const ukedag=finnUkedag(tekst);
+      if(ukedag!==null && ukedag!==dato.getDay())
+        return null;
 
-      const nøkkel=`${dato.toDateString()}|${sted}|${type}`;
+      const tittel=strip(e.title.rendered);
+      const sted=(e.class_list||[])
+        .find(c=>c.startsWith("location-"))
+        ?.replace("location-","")
+        .replace(/-/g," ")
+        .replace(/\b\w/g,l=>l.toUpperCase()) || "";
+
+      const nøkkel=`${dato.toDateString()}|${sted}|${tittel}`;
       if(brukt.has(nøkkel)) return null;
       brukt.add(nøkkel);
 
-      return {dato, sted, tittel, tekst:strip(e.excerpt.rendered), link:e.link};
+      return {dato,sted,tittel,tekst:strip(e.excerpt.rendered),link:e.link};
     })
     .filter(Boolean)
     .sort((a,b)=>a.dato-b.dato)
