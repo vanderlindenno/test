@@ -35,7 +35,6 @@ tbody tr:nth-child(odd){background:#ffffff;}
 tr.clickable{cursor:pointer;}
 tr.clickable:hover{background:#e8eee8;}
 
-/* 🌿 Kommende helg */
 tr.kommende-helg{
   background:#dfeee2 !important;
   border-left:6px solid #4d7c57;
@@ -78,28 +77,26 @@ const MONTHS={
   juli:6,august:7,september:8,oktober:9,november:10,desember:11
 };
 
-/* ===== helpers ===== */
-
 function strip(html){
   const d=document.createElement("div");
   d.innerHTML=html;
   return d.textContent.trim();
 }
 
-/* normaliser tittel for deduplicatie */
-function normaliserTittel(tittel){
-  return tittel
-    .toLowerCase()
-    .replace(/–|-/g," ")
-    .replace(/\s+/g," ")
-    .trim();
+/* 🔑 henter arrangementstype */
+function finnType(tittel){
+  const t = tittel.toLowerCase();
+  if(t.includes("bondens marked")) return "bondens marked";
+  if(t.includes("julemarked")) return "julemarked";
+  if(t.includes("høstmarked")) return "høstmarked";
+  if(t.includes("fotballcup")) return "fotballcup";
+  return t;
 }
 
-/* Sted med korrekt norsk kapitalisering */
 function kapitaliserSted(sted){
   return sted
     .split(" ")
-    .map(o => o.charAt(0).toUpperCase() + o.slice(1).toLowerCase())
+    .map(o => o.charAt(0).toUpperCase()+o.slice(1).toLowerCase())
     .join(" ")
     .replace(/\bOg\b/g,"og");
 }
@@ -109,14 +106,12 @@ function finnSted(classes=[]){
   return c ? kapitaliserSted(c.replace("location-","").replace(/-/g," ")) : "";
 }
 
-/* Norsk dato */
 function formatDato(d){
   const dager=["søndag","mandag","tirsdag","onsdag","torsdag","fredag","lørdag"];
   const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
   return `${dager[d.getDay()]} ${d.getDate()}. ${mnd[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/* Finn dato i tekst */
 function finnDato(text){
   const m=text.toLowerCase().match(
     /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
@@ -130,7 +125,6 @@ function finnDato(text){
   return dato;
 }
 
-/* Kommende helg */
 function kommendeHelg(d){
   const idag=new Date(); idag.setHours(0,0,0,0);
   const fredag=new Date(idag);
@@ -139,8 +133,6 @@ function kommendeHelg(d){
   return d>=fredag && d<=søndag;
 }
 
-/* ===== main ===== */
-
 function visArrangementer(events){
   const tbody=document.getElementById("arrangementer");
   tbody.innerHTML="";
@@ -148,7 +140,7 @@ function visArrangementer(events){
   const idag=new Date(); idag.setHours(0,0,0,0);
   const ettAar=new Date(idag); ettAar.setFullYear(idag.getFullYear()+1);
 
-  const sett = new Set();
+  const brukt = new Set();
 
   events
     .map(e=>{
@@ -158,19 +150,14 @@ function visArrangementer(events){
 
       const sted=finnSted(e.class_list);
       const tittel=strip(e.title.rendered);
+      const type=finnType(tittel);
 
-      const nøkkel =
-        dato.toDateString()+"|"+sted+"|"+normaliserTittel(tittel);
-
-      if(sett.has(nøkkel)) return null;
-      sett.add(nøkkel);
+      const nøkkel = `${dato.toDateString()}|${sted}|${type}`;
+      if(brukt.has(nøkkel)) return null;
+      brukt.add(nøkkel);
 
       return {
-        dato,
-        sted,
-        tittel,
-        tekst:strip(e.excerpt.rendered),
-        link:e.link
+        dato, sted, tittel, tekst:strip(e.excerpt.rendered), link:e.link
       };
     })
     .filter(Boolean)
@@ -196,7 +183,6 @@ function visArrangementer(events){
   }
 }
 
-/* start JSONP */
 const s=document.createElement("script");
 s.src=API;
 document.body.appendChild(s);
@@ -204,4 +190,3 @@ document.body.appendChild(s);
 
 </body>
 </html>
-``
