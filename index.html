@@ -2,19 +2,15 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <title>Markedsdager – Agder</title>
- 
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-  <meta charset="UTF-8">
-  <title>Evenementen Agder</title>
+  <title>Evenementen in Agder</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body {
+      margin: 2rem;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f2f2f2;
-      margin: 2rem;
     }
 
     h1 {
@@ -29,17 +25,23 @@
 
     .card {
       background: #fff;
-      border-radius: 20px;
+      border-radius: 18px;
       overflow: hidden;
       box-shadow: 0 8px 20px rgba(0,0,0,.08);
       display: flex;
       flex-direction: column;
+      transition: transform .15s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
     }
 
     .card img {
       width: 100%;
-      height: 200px;
+      height: 210px;
       object-fit: cover;
+      background: #ddd;
     }
 
     .content {
@@ -49,29 +51,34 @@
 
     .content h2 {
       font-size: 1.15rem;
-      margin: 0 0 .6rem;
+      margin: 0 0 0.6rem 0;
     }
 
     .content p {
-      font-size: .95rem;
+      font-size: 0.95rem;
       color: #555;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .labels {
       display: flex;
       flex-wrap: wrap;
-      gap: .5rem;
+      gap: 0.5rem;
       margin-top: 1rem;
     }
 
     .label {
-      font-size: .75rem;
-      padding: .35rem .8rem;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.8rem;
       border-radius: 999px;
       border: 1px solid #d0d0d0;
       background: #f7f7f7;
       white-space: nowrap;
+    }
+
+    .empty {
+      color: #555;
+      font-size: 1rem;
     }
   </style>
 </head>
@@ -82,101 +89,120 @@
 <div id="events" class="grid">Evenementen laden…</div>
 
 <script>
-  const FEED =
+  const RSS_URL =
     "https://api.rss2json.com/v1/api.json?rss_url=" +
     encodeURIComponent("https://www.markedsdager.no/eventcat/agder/feed/");
 
   const today = new Date();
   today.setHours(0,0,0,0);
 
-  function extractEventDate(text) {
-    const regex = /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)\s*(\d{4})/i;
+  const MONTHS = {
+    januar:0, februar:1, mars:2, april:3, mai:4, juni:5,
+    juli:6, august:7, september:8, oktober:9,
+    november:10, desember:11
+  };
 
-    const months = {
-      januar:0, februar:1, mars:2, april:3, mai:4, juni:5,
-      juli:6, august:7, september:8, oktober:9,
-      november:10, desember:11
-    };
+  function extractEventDate(item) {
+    const text = (item.title + " " + item.description).toLowerCase();
+
+    const regex =
+      /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i;
 
     const match = text.match(regex);
     if (!match) return null;
 
-    return new Date(
-      parseInt(match[3]),
-      months[match[2].toLowerCase()],
-      parseInt(match[1])
-    );
+    const day = parseInt(match[1], 10);
+    const month = MONTHS[match[2]];
+    let year = match[3] ? parseInt(match[3], 10) : today.getFullYear();
+
+    let date = new Date(year, month, day);
+
+    // geen jaar → als datum al voorbij is, neem volgend jaar
+    if (!match[3] && date < today) {
+      date = new Date(year + 1, month, day);
+    }
+
+    return date;
   }
 
   function cleanDescription(html) {
-    const tmp = document.createElement("div");
-    tmp.innerHTML = html;
-    let text = tmp.textContent || tmp.innerText || "";
+    const el = document.createElement("div");
+    el.innerHTML = html;
+
+    let text = el.textContent || "";
     text = text.replace(/\s+/g, " ").trim();
-    return text.length > 140 ? text.slice(0, 140) + "…" : text;
+
+    return text.length > 140
+      ? text.slice(0, 140) + "…"
+      : text;
   }
 
-  fetch(FEED)
+  fetch(RSS_URL)
     .then(r => r.json())
     .then(feed => {
-      let events = [];
+      const events = [];
 
       feed.items.forEach(item => {
-        const eventDate = extractEventDate(item.description);
+        const eventDate = extractEventDate(item);
         if (!eventDate) return;
-        if (eventDate < today) return; // 🔮 alleen toekomstige events
+        if (eventDate < today) return;
 
         events.push({
           title: item.title,
+          link: item.link,
           image: item.enclosure?.link || item.thumbnail,
           description: cleanDescription(item.description),
           date: eventDate,
-          categories: item.categories
+          categories: item.categories || []
         });
       });
 
-      // 📅 sorteren op eventdatum
+      // sorteren op eventdatum
       events.sort((a, b) => a.date - b.date);
 
       const container = document.getElementById("events");
       container.innerHTML = "";
 
-      events.forEach(event => {
+      if (events.length === 0) {
+        container.innerHTML =
+          '<div class="empty">Geen toekomstige evenementen gevonden.</div>';
+        return;
+      }
+
+      events.forEach(e => {
         const card = document.createElement("div");
         card.className = "card";
 
         card.innerHTML = `
-          <img src="${event.image || 'https://via.placeholder.com/600x400?text=Evenement'}"
-               loading="lazy"
-cription}</p>
+          <img src="${e.image || 'https://via.placeholder.com/600x400?text=Evenement'}"
+              >${e.description}</p>
             <div class="labels">
               <span class="label">
-                ${event.date.toLocaleDateString("nl-NL", {
+                ${e.date.toLocaleDateString("nl-NL", {
                   day: "numeric",
                   month: "long",
                   year: "numeric"
                 })}
               </span>
-              ${event.categories.map(c => `<span class="label">${c}</span>`).join("")}
+              ${e.categories.map(c =>
+                `<span class="label">${c}</span>`
+              ).join("")}
             </div>
           </div>
         `;
 
+        card.addEventListener("click", () => {
+          window.open(e.link, "_blank");
+        });
+
         container.appendChild(card);
       });
-
-      if (events.length === 0) {
-        container.innerText = "Geen toekomstige evenementen gevonden.";
-      }
     })
     .catch(() => {
-      document.getElementById("events").innerText =
-        "Evenementen konden niet geladen worden.";
+      document.getElementById("events").innerHTML =
+        '<div class="empty">Evenementen konden niet geladen worden.</div>';
     });
 </script>
-
-</body>
-</html>
 
 </body>
 </html>
