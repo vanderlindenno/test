@@ -1,53 +1,74 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8">
-<title>Events</title>
+  <meta charset="UTF-8">
+  <title>Markedsdager – Agder</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background: #f4f4f4;
+    }
+    h1 {
+      margin-bottom: 1.5rem;
+    }
+    .event {
+      background: #fff;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .event a {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #2c3e50;
+      text-decoration: none;
+    }
+    .event a:hover {
+      text-decoration: underline;
+    }
+    .event .date {
+      font-size: 0.9rem;
+      color: #777;
+      margin-bottom: 0.5rem;
+    }
+  </style>
 </head>
 <body>
-<h2>Event toevoegen</h2>
 
-<form
-  action="https://vanderlinden.42web.io/api/add_event.php"
-  method="POST"
->
-  <input
-    type="text"
-    name="title"
-    placeholder="Titel"
-    required
-  >
+<h1>Evenementen in Agder</h1>
+<div id="rss">Evenementen laden…</div>
 
-  <input
-    type="date"
-    name="date"
-    required
-  >
+<script>
+  const rssFeed = "https://www.markedsdager.no/eventcat/agder/feed/";
+  const apiUrl = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(rssFeed);
 
-  <input
-    type="text"
-    name="location"
-    placeholder="Plaats"
-    required
-  >
+  fetch(apiUrl)
+    .then(response => response.json())
+    .then(data => {
+      const container = document.getElementById("rss");
+      container.innerHTML = "";
 
-  <textarea
-    name="description"
-    placeholder="Beschrijving"
-  ></textarea>
+      data.items.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "event";
 
-  <input
-    type="text"
-    name="contact"
-    placeholder="Contactpersoon"
-  >
+        div.innerHTML = `
+          ${item.link}${item.title}</a>
+          <div class="date">${new Date(item.pubDate).toLocaleDateString("nl-NL")}</div>
+          <div>${item.description}</div>
+        `;
 
-  <button type="submit">Opslaan</button>
-</form>
+        container.appendChild(div);
+      });
+    })
+    .catch(error => {
+      document.getElementById("rss").innerText =
+        "Kon de feed niet laden.";
+      console.error(error);
+    });
+</script>
 
-  
-<h2>Events</h2>
-<div id="events"></div>
-<script src="app.js"></script>
 </body>
 </html>
