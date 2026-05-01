@@ -11,11 +11,17 @@ body{
   font-family:system-ui,sans-serif;
   background:#f2f2f2;
 }
-h1{margin-bottom:2rem;}
-.month{margin-bottom:3rem;}
-.month h2{
-  margin-bottom:1rem;
+h1{margin-bottom:1rem;}
+input{
+  padding:.6rem .8rem;
+  width:100%;
+  max-width:400px;
+  margin-bottom:2rem;
+  border-radius:8px;
+  border:1px solid #ccc;
 }
+.month{margin-bottom:3rem;}
+.month h2{margin-bottom:1rem;}
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
@@ -32,24 +38,17 @@ h1{margin-bottom:2rem;}
   width:100%;
   height:190px;
   object-fit:cover;
-  background:#ddd;
 }
 .content{padding:1.2rem;}
-.date{
-  font-size:.8rem;
-  font-weight:600;
-  color:#444;
-}
-.place{
-  font-size:.75rem;
-  color:#666;
-}
+.date{font-size:.8rem;font-weight:600;color:#444;}
+.place{font-size:.75rem;color:#666;}
 </style>
 </head>
 
 <body>
 
 <h1>Evenementen i Agder</h1>
+<input id="search" placeholder="Zoek op naam, plaats of tekst…">
 <div id="events">Evenementen laden…</div>
 
 <script>
@@ -57,10 +56,12 @@ const API =
  "https://www.markedsdager.no/wp-json/wp/v2/event" +
  "?eventcat=30&per_page=50&_jsonp=handleEvents";
 
-const MONTHS = {
+const MONTHS={
   januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
   juli:6,august:7,september:8,oktober:9,november:10,desember:11
 };
+
+let allEvents=[];
 
 function strip(html){
   const d=document.createElement("div");
@@ -68,29 +69,24 @@ function strip(html){
   return d.textContent.trim();
 }
 
-function extractEventDate(text){
+function extractDate(text){
   const m=text.toLowerCase().match(
     /(\d{1,2})(?:\.\s*(?:–|-)\s*(\d{1,2}))?\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
   );
   if(!m) return null;
-
   const day=parseInt(m[1],10);
   const month=MONTHS[m[3]];
   const year=m[4]?parseInt(m[4],10):new Date().getFullYear();
-  const date=new Date(year,month,day);
-
-  if(!m[4] && date < new Date())
-    return new Date(year+1,month,day);
-
+  let date=new Date(year,month,day);
+  if(!m[4] && date<new Date()) date=new Date(year+1,month,day);
   return date;
 }
 
 function extractPlace(classes){
   const c=classes.find(x=>x.startsWith("location-"));
-  return c?c.replace("location-","").replace("-"," "):"";
+  return c?c.replace("location-","").replace(/-/g," "):"";
 }
 
-/* ===== media JSONP ===== */
 function loadImage(id,img){
   const cb="media_"+id;
   window[cb]=d=>{
@@ -98,58 +94,38 @@ function loadImage(id,img){
     delete window[cb];
   };
   const s=document.createElement("script");
-  s.src=
-   "https://www.markedsdager.no/wp-json/wp/v2/media/"
-   +id+"?_jsonp="+cb;
+  s.src="https://www.markedsdager.no/wp-json/wp/v2/media/"+id+"?_jsonp="+cb;
   document.body.appendChild(s);
 }
 
-/* ===== hoofdlogica ===== */
-function handleEvents(events){
-  const today=new Date();
-  today.setHours(0,0,0,0);
-
-  const map={};
-
-  events.forEach(e=>{
-    const text=strip(
-      e.title.rendered+" "+
-      e.excerpt.rendered+" "+
-      e.content.rendered
-    );
-
-    const date=extractEventDate(text);
-    if(!date || date<today) return;   // 🔮 alleen toekomst
-
-    const key=date.getFullYear()+"-"+date.getMonth();
-    if(!map[key]) map[key]=[];
-
-    map[key].push({
-      title:strip(e.title.rendered),
-      excerpt:strip(e.excerpt.rendered),
-      link:e.link,
-      date,
-      place:extractPlace(e.class_list||[]),
-      media:e.featured_media
-    });
-  });
-
+function render(filter=""){
   const container=document.getElementById("events");
   container.innerHTML="";
+  const today=new Date(); today.setHours(0,0,0,0);
 
-  Object.keys(map).sort().forEach(k=>{
-    const d=map[k][0].date;
+  const grouped={};
+
+  allEvents
+    .filter(e =>
+      e.date>=today &&
+      (e.text.includes(filter.toLowerCase()))
+    )
+    .sort((a,b)=>a.date-b.date)   // ✅ sorteren op datum
+    .forEach(e=>{
+      const key=e.date.getFullYear()+"-"+e.date.getMonth();
+      (grouped[key] ||= []).push(e);
+    });
+
+  Object.keys(grouped).forEach(k=>{
+    const d=grouped[k][0].date;
     const month=document.createElement("div");
     month.className="month";
-
     month.innerHTML=
-      `<h2>${d.toLocaleDateString("nl-NL",
-        {month:"long",year:"numeric"})}</h2>
+      `<h2>${d.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})}</h2>
        <div class="grid"></div>`;
-
     const grid=month.querySelector(".grid");
 
-    map[k].sort((a,b)=>a.date-b.date).forEach(e=>{
+    grouped[k].forEach(e=>{
       const img=document.createElement("img");
       if(e.media) loadImage(e.media,img);
 
@@ -158,9 +134,7 @@ function handleEvents(events){
       card.innerHTML=`
         <img>
         <div class="content">
-          <div class="date">
-            ${e.date.toLocaleDateString("nl-NL")}
-          </div>
+          <div class="date">${e.date.toLocaleDateString("nl-NL")}</div>
           <h3>${e.title}</h3>
           <p>${e.excerpt}</p>
           <div class="place">${e.place}</div>
@@ -172,9 +146,29 @@ function handleEvents(events){
 
     container.appendChild(month);
   });
+
+  if(!container.innerHTML) container.textContent="Geen resultaten gevonden.";
 }
 
-/* JSONP injectie */
+function handleEvents(events){
+  allEvents = events.map(e=>{
+    const text=strip(e.title.rendered+" "+e.excerpt.rendered+" "+e.content.rendered);
+    return {
+      title:strip(e.title.rendered),
+      excerpt:strip(e.excerpt.rendered),
+      link:e.link,
+      date:extractDate(text)||new Date(3000,0,1),
+      place:extractPlace(e.class_list||[]),
+      media:e.featured_media,
+      text:text.toLowerCase()
+    };
+  });
+  render();
+}
+
+document.getElementById("search").oninput =
+  e=>render(e.target.value);
+
 const s=document.createElement("script");
 s.src=API;
 document.body.appendChild(s);
