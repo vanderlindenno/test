@@ -11,7 +11,10 @@ body {
   font-family: system-ui, sans-serif;
   background: #f2f2f2;
 }
-h1 { margin-bottom: 2rem; }
+
+h1 {
+  margin-bottom: 2rem;
+}
 
 .grid {
   display: grid;
@@ -20,36 +23,35 @@ h1 { margin-bottom: 2rem; }
 }
 
 .card {
-  background: #fff;
+  background: white;
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 8px 20px rgba(0,0,0,.08);
-  cursor: pointer;
 }
 
 .card img {
   width: 100%;
   height: 200px;
   object-fit: cover;
+  background: #ddd;
 }
 
 .content {
   padding: 1.2rem;
 }
 
-.labels {
-  display: flex;
-  gap: .5rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
+.content h3 {
+  margin-top: 0;
 }
 
 .label {
+  display: inline-block;
+  margin-top: .6rem;
+  padding: .3rem .7rem;
   font-size: .75rem;
-  padding: .35rem .8rem;
   border-radius: 999px;
+  background: #f0f0f0;
   border: 1px solid #ccc;
-  background: #f7f7f7;
 }
 </style>
 </head>
@@ -61,7 +63,7 @@ h1 { margin-bottom: 2rem; }
 
 <script>
 const API =
-  "https://www.markedsdager.no/wp-json/wp/v2/event?_embed&eventcat=agder&per_page=50";
+  "https://www.markedsdager.no/wp-json/wp/v2/event?eventcat=30&per_page=20";
 
 function strip(html) {
   const d = document.createElement("div");
@@ -69,9 +71,18 @@ function strip(html) {
   return d.textContent.trim();
 }
 
+async function getImage(mediaId) {
+  if (!mediaId) return null;
+  const r = await fetch(
+    "https://www.markedsdager.no/wp-json/wp/v2/media/" + mediaId
+  );
+  const m = await r.json();
+  return m.source_url || null;
+}
+
 fetch(API)
 .then(r => r.json())
-.then(events => {
+.then(async events => {
   const container = document.getElementById("events");
   container.innerHTML = "";
 
@@ -83,34 +94,30 @@ fetch(API)
   const grid = document.createElement("div");
   grid.className = "grid";
 
-  events.forEach(event => {
-    const image =
-      event._embedded?.["wp:featuredmedia"]?.[0]?.source_url ||
-      "https://via.placeholder.com/600x400?text=Evenement";
+  for (const event of events) {
+    const img = await getImage(event.featured_media);
 
     const card = document.createElement("div");
     card.className = "card";
+
     card.innerHTML = `
-      ${image}
-      <div class="content">
+      ${img ? `<img src="${img}"   <div class="content">
         <h3>${strip(event.title.rendered)}</h3>
         <p>${strip(event.excerpt.rendered)}</p>
-        <div class="labels">
-          <span class="label">Markedsdager</span>
-          <span class="label">Agder</span>
-        </div>
+        <span class="label">Agder</span>
       </div>
     `;
 
     card.onclick = () => window.open(event.link, "_blank");
     grid.appendChild(card);
-  });
+  }
 
   container.appendChild(grid);
 })
-.catch(() => {
+.catch(err => {
   document.getElementById("events").textContent =
     "Fout bij laden van evenementen.";
+  console.error(err);
 });
 </script>
 
