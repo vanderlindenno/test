@@ -1,1 +1,506 @@
+:root{
+  --primary:#1e3a8a;
+  --bg:#FFFF00;
+  --card:#ffffff;
+}
 
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:#333;
+}
+
+header{
+  background:var(--primary);
+  color:#FFFF00;
+  text-align:center;
+  padding:2.5rem 1rem;
+}
+
+main{
+  max-width:820px;
+  margin:auto;
+  padding:1rem;
+}
+
+.card{
+  background:var(--card);
+  border-radius:12px;
+  padding:1.5rem;
+  margin-bottom:1rem;
+  box-shadow:0 4px 14px rgba(0,0,0,.05);
+}
+
+h2{
+  margin-top:0;
+  color:var(--primary);
+}
+
+.status{
+  font-size:1.4rem;
+  font-weight:700;
+}
+
+.meta{
+  margin-top:.4rem;
+  font-size:.9rem;
+  color:#555;
+}
+
+/* GALLERY */
+.gallery{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+@media (max-width:600px){
+  .gallery{grid-template-columns:repeat(2,1fr);}
+}
+.gallery img{
+  width:100%;
+  aspect-ratio:4/3;
+  object-fit:cover;
+  border-radius:8px;
+  cursor:pointer;
+  background:#e5e7eb;
+}
+
+/* MAP */
+iframe{
+  width:100%;
+  height:320px;
+  border:0;
+  border-radius:10px;
+}
+
+/* MOBILE */
+.mobile{display:none}
+.desktop{display:inline}
+@media (max-width:768px){
+  .mobile{display:inline}
+  .desktop{display:none}
+}
+
+/* CHAT BUTTONS – ALLEEN MOBIEL, SVG */
+.chat-buttons{
+  position:fixed;
+  bottom:20px;
+  right:15px;
+  display:none;
+  flex-direction:column;
+  gap:12px;
+  z-index:1000;
+}
+@media (max-width:768px),
+       (hover: none) and (pointer: coarse) {
+  .chat-buttons{
+    display:flex;
+  }
+}
+
+.chat-btn{
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 4px 10px rgba(0,0,0,.25);
+  overflow:hidden;   /* 🔑 DIT WAS DE MISSENDE SLEUTEL */
+}
+
+.chat-btn img{
+  width:56px;
+  height:56px;
+  object-fit:contain;
+  display:block;
+}
+
+.chat-btn.sms {
+  background:#0b5ed7;
+  order: 1;
+}
+.chat-btn.whatsapp {
+  background:#0b5ed7;
+  order: 2;
+}
+.chat-btn.call {
+  background:#0b5ed7;
+  order: 3;
+}
+  
+@keyframes contact-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(11, 94, 215, .6); }
+  70% { box-shadow: 0 0 0 14px rgba(11, 94, 215, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(11, 94, 215, 0); }
+}
+
+.chat-btn.sms{
+  animation: contact-pulse 2.2s infinite;
+}
+
+/* FAQ (ORIGINEEL) */
+.faq-item{
+  border-bottom:1px solid #e5e7eb;
+  padding:.8rem 0;
+}
+.faq-question{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
+  font-weight:600;
+}
+.faq-question span{
+  font-size:1.4rem;
+  transition:transform .2s ease;
+}
+.faq-answer{
+  max-height:0;
+  overflow:hidden;
+  transition:max-height .25s ease;
+  color:#555;
+  font-size:.95rem;
+  margin-top:.4rem;
+}
+.faq-item.open .faq-answer{max-height:500px}
+.faq-item.open .faq-question span{transform:rotate(45deg)}
+
+footer{
+  text-align:center;
+  padding:1rem;
+  color:#777;
+}
+
+/* LIGHTBOX */
+.lightbox{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.85);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+.lightbox.open{display:flex}
+.lightbox img{
+  max-width:90%;
+  max-height:90%;
+  border-radius:10px;
+}
+.lb-close,.lb-prev,.lb-next{
+  position:absolute;
+  color:#fff;
+  font-size:2.4rem;
+  cursor:pointer;
+  user-select:none;
+}
+.lb-close{top:16px;right:20px}
+.lb-prev{left:20px;top:50%;transform:translateY(-50%)}
+.lb-next{right:20px;top:50%;transform:translateY(-50%)}
+
+/* Badstueklima – standaard / vet */
+.sauna-state{
+  font-size:1.1rem;
+  font-weight:400;   /* normaal */
+  margin:.3rem 0 .1rem;
+}
+
+.sauna-values{
+  font-size:1.15rem;
+  font-weight:700;   /* VET */
+  margin-bottom:.35rem;
+}
+
+.sauna-updated{
+  font-size:.85rem;
+  color:#6b7280;
+}
+
+.sauna-cold{color:#1e40af;}
+.sauna-warm{color:#b45309;}
+.sauna-ready{color:#b91c1c;}
+
+footer {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.footer-separator {
+  margin: 0 6px;
+  color: #999;
+}
+
+.footer-link {
+  color: inherit;                    /* zelfde kleur als footer */
+  font-family: inherit;              /* zelfde lettertype */
+  text-decoration: none;
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor; /* constant subtiel zichtbaar */
+  display: inline-block;             /* nodig voor scale */
+  transition: transform 0.15s ease;  /* soepele animatie */
+}
+
+.footer-link:hover {
+  transform: scale(1.08);             /* iets groter bij hover */
+}
+
+/* 🚧 MAINTENANCE MODAL */
+.maintenance-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:10000;
+}
+
+.maintenance-modal.open{
+  display:flex;
+}
+
+.maintenance-box{
+  background:#fff;
+  max-width:420px;
+  margin:1rem;
+  padding:1.8rem 1.6rem;
+  border-radius:14px;
+  text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);
+  animation:modalFadeIn .25s ease;
+}
+
+.maintenance-box h2{
+  color:#b91c1c;
+  margin-top:0;
+}
+
+.maintenance-box p{
+  margin:.6rem 0;
+  color:#333;
+}
+
+.maintenance-muted{
+  font-size:.9rem;
+  color:#666;
+}
+
+.maintenance-box button{
+  margin-top:1.2rem;
+  padding:.6rem 1.2rem;
+  border:none;
+  border-radius:8px;
+  background:var(--primary);
+  color:#fff;
+  font-size:1rem;
+  cursor:pointer;
+}
+
+@keyframes modalFadeIn{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}  
+
+
+
+.faq-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.faq-image {
+  width: 200px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .faq-answer {
+    flex-direction: column;
+  }
+
+  .faq-image {
+    width: 100%;
+  }
+}
+
+/* SEO-tekst: normale tekstflow, geen kolommen */
+.seo-text {
+  display: block;
+}
+.seo-text p {
+  margin-bottom: 0.9rem;
+} 
+/* SEO-tekst: geen hoogtebeperking */
+.faq-item.open .faq-answer.seo-text {
+  max-height: none;
+}
+
+ .map-container {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%; /* 16:9 verhouding */
+  }
+
+  .map-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+/* ✅ Formulier in "Andre spørsmål?" moet GEEN flex zijn */
+.faq-item .faq-answer form {
+  width: 100%;
+}
+
+/* 👇 DIT IS DE SLEUTEL */
+.faq-item .faq-answer:has(form) {
+  display: block;
+}
+
+/* Velden volle breedte */
+.faq-item .faq-answer input,
+.faq-item .faq-answer textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.faq-item .faq-answer button {
+  margin-top: 0.5rem;
+}
+
+.faq-form-answer {
+  display: block;
+}
+
+.faq-form-answer form,
+.faq-form-answer input,
+.faq-form-answer textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.faq-form-answer {
+  display: block;
+}
+#lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+
+  /* mobiel gedrag */
+  -webkit-tap-highlight-color: transparent;
+}
+
+#lightbox img {
+  max-width: 92%;
+  max-height: 92%;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+}
+#lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* afbeelding */
+#lightbox img {
+  max-width: 92%;
+  max-height: 92%;
+  border-radius: 12px;
+}
+
+/* sluitknop */
+.lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 30px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* pijltjes */
+.lightbox-prev,
+.lightbox-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 40px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 10px;
+  user-select: none;
+}
+
+.lightbox-prev { left: 15px; }
+.lightbox-next { right: 15px; }
+
+/* kleinere schermen */
+@media (max-width: 600px) {
+  .lightbox-prev,
+  .lightbox-next {
+    font-size: 32px;
+  }
+}
+
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.events-table th,
+.events-table td {
+  padding: 0.7rem 0.6rem;
+  border-bottom: 1px solid #ddd;
+  vertical-align: top;
+  text-align: left;
+}
+
+.events-table thead {
+  background: #f0f0f0;
+}
+
+.events-table tbody tr:nth-child(even) {
+  background: #f3f6f3;
+}
+
+.events-table tbody tr:hover {
+  background: #e8eee8;
+  cursor: pointer;
+}
+
+.events-table .year {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.badge-helg {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  background: #4d7c57;
+  color: #fff;
+  border-radius: 4px;
+}
