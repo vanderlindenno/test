@@ -1,193 +1,185 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <title>Evenementen i Agder</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>Evenementen i Agder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body {
-      margin: 2rem;
-      font-family: system-ui, sans-serif;
-      background:#f2f2f2;
-    }
-    h1 { margin-bottom:1rem; }
-    .filters { margin-bottom:2rem; }
-    select {
-      padding:.6rem .8rem;
-      border-radius:8px;
-      border:1px solid #ccc;
-    }
-    .month { margin-bottom:3rem; }
-    .grid {
-      display:grid;
-      grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
-      gap:1.5rem;
-    }
-    .card {
-      background:#fff;
-      border-radius:18px;
-      overflow:hidden;
-      box-shadow:0 8px 20px rgba(0,0,0,.08);
-      cursor:pointer;
-    }
-    .card img {
-      width:100%;
-      height:200px;
-      object-fit:cover;
-    }
-    .content { padding:1.2rem; }
-    .labels {
-      display:flex;
-      gap:.5rem;
-      flex-wrap:wrap;
-      margin-top:1rem;
-    }
-    .label {
-      font-size:.75rem;
-      padding:.35rem .8rem;
-      border-radius:999px;
-      border:1px solid #ccc;
-      background:#f7f7f7;
-    }
-  </style>
+<style>
+body{
+  margin:2rem;
+  font-family:system-ui,sans-serif;
+  background:#f2f2f2;
+}
+h1{margin-bottom:1rem;}
+select{
+  padding:.6rem .8rem;
+  border-radius:8px;
+  border:1px solid #ccc;
+  margin-bottom:2rem;
+}
+.month{margin-bottom:3rem;}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:1.5rem;
+}
+.card{
+  background:#fff;
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+  cursor:pointer;
+}
+.card img{
+  width:100%;
+  height:200px;
+  object-fit:cover;
+}
+.content{padding:1.2rem;}
+.labels{
+  display:flex;
+  gap:.5rem;
+  flex-wrap:wrap;
+  margin-top:1rem;
+}
+.label{
+  font-size:.75rem;
+  padding:.35rem .8rem;
+  border-radius:999px;
+  border:1px solid #ccc;
+  background:#f7f7f7;
+}
+</style>
 </head>
 
 <body>
 
 <h1>Evenementen i Agder</h1>
 
-<div class="filters">
-  <select id="placeFilter">
-    <option value="">Alle plaatsen</option>
-  </select>
-</div>
+<select id="placeFilter">
+  <option value="">Alle plaatsen</option>
+</select>
 
 <div id="events">Evenementen laden…</div>
 
 <script>
 const FEED =
-  "https://api.rss2json.com/v1/api.json?rss_url=" +
-  encodeURIComponent("https://www.markedsdager.no/eventcat/agder/feed/");
+ "https://api.rss2json.com/v1/api.json?rss_url=" +
+ encodeURIComponent("https://www.markedsdager.no/eventcat/agder/feed/");
 
 const TODAY = new Date();
 TODAY.setHours(0,0,0,0);
 
 const MONTHS = {
-  januar:0, februar:1, mars:2, april:3, mai:4, juni:5,
-  juli:6, august:7, september:8, oktober:9, november:10, desember:11
+  januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
+  juli:6,august:7,september:8,oktober:9,november:10,desember:11
 };
 
-const PLACES = [
-  "Risør","Åmli","Lindesnes","Grimstad","Arendal",
-  "Kristiansand","Tvedestrand","Froland"
-];
+const PLACES=["Risør","Åmli","Lindesnes","Arendal","Grimstad","Kristiansand"];
 
-function extractFirstDate(text) {
-  const match = text.toLowerCase().match(
+function extractDate(text){
+  const m=text.toLowerCase().match(
     /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
   );
-  if (!match) return null;
+  if(!m) return null;
 
-  const day = parseInt(match[1],10);
-  const month = MONTHS[match[2]];
-  let year = match[3] ? parseInt(match[3],10) : TODAY.getFullYear();
+  const d=parseInt(m[1],10);
+  const mo=MONTHS[m[2]];
+  let y=m[3]?parseInt(m[3],10):TODAY.getFullYear();
 
-  let date = new Date(year, month, day);
-  if (!match[3] && date < TODAY) {
-    date = new Date(year + 1, month, day);
-  }
+  let date=new Date(y,mo,d);
+  if(!m[3] && date<TODAY) date=new Date(y+1,mo,d);
   return date;
 }
 
-function clean(html) {
-  const d = document.createElement("div");
-  d.innerHTML = html;
-  let t = d.textContent.trim().replace(/\s+/g," ");
-  return t.length > 130 ? t.slice(0,130)+"…" : t;
+function clean(html){
+  const d=document.createElement("div");
+  d.innerHTML=html;
+  let t=d.textContent.replace(/\s+/g," ").trim();
+  return t.length>130?t.slice(0,130)+"…":t;
 }
 
 fetch(FEED)
 .then(r=>r.json())
 .then(feed=>{
-  const events = [];
-  const placeSet = new Set();
+  const events=[];
+  const placeset=new Set();
 
   feed.items.forEach(item=>{
-    const text = item.title + " " + item.description;
-    const date = extractFirstDate(text);
-    if (!date || date < TODAY) return;
+    const text=item.title+" "+item.description;
+    const date=extractDate(text);
+    const places=PLACES.filter(p=>text.toLowerCase().includes(p.toLowerCase()));
+    places.forEach(p=>placeset.add(p));
 
-    const places = PLACES.filter(p =>
-      text.toLowerCase().includes(p.toLowerCase())
-    );
-    places.forEach(p=>placeSet.add(p));
+    // ✅ NIET wegfilteren als datum ontbreekt
+    if(date && date<TODAY) return;
 
     events.push({
       title:item.title,
       link:item.link,
-      image:item.enclosure?.link || item.thumbnail,
+      image:item.enclosure?.link||item.thumbnail,
       desc:clean(item.description),
-      date, places
+      date,
+      places
     });
   });
 
-  events.sort((a,b)=>a.date-b.date);
+  events.sort((a,b)=>(a.date||Infinity)-(b.date||Infinity));
 
-  const placeFilter = document.getElementById("placeFilter");
-  [...placeSet].sort().forEach(p=>{
+  const pf=document.getElementById("placeFilter");
+  [...placeset].sort().forEach(p=>{
     const o=document.createElement("option");
-    o.value=p; o.textContent=p;
-    placeFilter.appendChild(o);
+    o.value=p;o.textContent=p;
+    pf.appendChild(o);
   });
 
-  function render(filter="") {
-    const container=document.getElementById("events");
-    container.innerHTML="";
+  function render(filter=""){
+    const c=document.getElementById("events");
+    c.innerHTML="";
     const groups={};
 
     events.forEach(e=>{
       if(filter && !e.places.includes(filter)) return;
-      const k=e.date.getFullYear()+"-"+e.date.getMonth();
-      (groups[k] ||= []).push(e);
+      const key=e.date?`${e.date.getFullYear()}-${e.date.getMonth()}`:"ongepland";
+      (groups[key] ||= []).push(e);
     });
 
     Object.keys(groups).forEach(k=>{
-      const date=groups[k][0].date;
+      const first=groups[k][0];
       const m=document.createElement("div");
       m.className="month";
-      m.innerHTML=`<h2>${date.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})}</h2><div class="grid"></div>`;
+
+      const title=first.date
+        ? first.date.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})
+        : "Datum binnenkort";
+
+      m.innerHTML=`<h2>${title}</h2><div class="grid"></div>`;
       const g=m.querySelector(".grid");
 
       groups[k].forEach(e=>{
-        const c=document.createElement("div");
-        c.className="card";
-        c.innerHTML=`
-          <img src="${e.image||'https://via.placeholder.com/600x400'}"${e.title}</h3>
+        const card=document.createElement("div");
+        card.className="card";
+        card.innerHTML=`
+          ${e.image||
+          <div class="content">
+            <h3>${e.title}</h3>
             <p>${e.desc}</p>
             <div class="labels">
-              <span class="label">${e.date.toLocaleDateString("nl-NL")}</span>
+              <span class="label">${e.date?e.date.toLocaleDateString("nl-NL"):"Datum binnenkort"}</span>
               ${e.places.map(p=>`<span class="label">${p}</span>`).join("")}
             </div>
           </div>`;
-        c.onclick=()=>window.open(e.link,"_blank");
-        g.appendChild(c);
+        card.onclick=()=>window.open(e.link,"_blank");
+        g.appendChild(card);
       });
 
-      container.appendChild(m);
+      c.appendChild(m);
     });
-
-    if(!container.innerHTML) {
-      container.textContent="Geen toekomstige evenementen.";
-    }
   }
 
-  placeFilter.onchange=e=>render(e.target.value);
+  pf.onchange=e=>render(e.target.value);
   render();
-})
-.catch(()=>{
-  document.getElementById("events").textContent =
-    "Fout bij laden van evenementen.";
 });
 </script>
 
