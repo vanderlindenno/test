@@ -6,24 +6,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body {
-  margin: 2rem;
-  font-family: system-ui, sans-serif;
-  background: #f2f2f2;
+body{
+  margin:2rem;
+  font-family:system-ui,sans-serif;
+  background:#f2f2f2;
 }
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
+h1{margin-bottom:2rem;}
+.month{margin-bottom:3rem;}
+.month h2{
+  margin-bottom:1rem;
 }
-
-.card {
-  background: white;
-  border-radius: 16px;
-  padding: 1.2rem;
-  box-shadow: 0 6px 16px rgba(0,0,0,.08);
-  cursor: pointer;
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:1.5rem;
+}
+.card{
+  background:#fff;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 6px 16px rgba(0,0,0,.08);
+  cursor:pointer;
+}
+.card img{
+  width:100%;
+  height:190px;
+  object-fit:cover;
+  background:#ddd;
+}
+.content{padding:1.2rem;}
+.date{
+  font-size:.8rem;
+  font-weight:600;
+  color:#444;
+}
+.place{
+  font-size:.75rem;
+  color:#666;
 }
 </style>
 </head>
@@ -34,45 +53,131 @@ body {
 <div id="events">Evenementen laden…</div>
 
 <script>
-function strip(html) {
-  const d = document.createElement("div");
-  d.innerHTML = html;
+const API =
+ "https://www.markedsdager.no/wp-json/wp/v2/event" +
+ "?eventcat=30&per_page=50&_jsonp=handleEvents";
+
+const MONTHS = {
+  januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
+  juli:6,august:7,september:8,oktober:9,november:10,desember:11
+};
+
+function strip(html){
+  const d=document.createElement("div");
+  d.innerHTML=html;
   return d.textContent.trim();
 }
 
-// JSONP callback
-function showEvents(events) {
-  const container = document.getElementById("events");
-  container.innerHTML = "";
+function extractEventDate(text){
+  const m=text.toLowerCase().match(
+    /(\d{1,2})(?:\.\s*(?:–|-)\s*(\d{1,2}))?\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
+  );
+  if(!m) return null;
 
-  if (!events || !events.length) {
-    container.textContent = "Geen evenementen gevonden.";
-    return;
-  }
+  const day=parseInt(m[1],10);
+  const month=MONTHS[m[3]];
+  const year=m[4]?parseInt(m[4],10):new Date().getFullYear();
+  const date=new Date(year,month,day);
 
-  const grid = document.createElement("div");
-  grid.className = "grid";
+  if(!m[4] && date < new Date())
+    return new Date(year+1,month,day);
 
-  events.forEach(e => {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <h3>${strip(e.title.rendered)}</h3>
-      <p>${strip(e.excerpt.rendered)}</p>
-    `;
-    card.onclick = () => window.open(e.link, "_blank");
-    grid.appendChild(card);
-  });
-
-  container.appendChild(grid);
+  return date;
 }
 
-// JSONP script injectie
-const script = document.createElement("script");
-script.src =
-  "https://www.markedsdager.no/wp-json/wp/v2/event" +
-  "?eventcat=30&per_page=20&_jsonp=showEvents";
-document.body.appendChild(script);
+function extractPlace(classes){
+  const c=classes.find(x=>x.startsWith("location-"));
+  return c?c.replace("location-","").replace("-"," "):"";
+}
+
+/* ===== media JSONP ===== */
+function loadImage(id,img){
+  const cb="media_"+id;
+  window[cb]=d=>{
+    if(d?.source_url) img.src=d.source_url;
+    delete window[cb];
+  };
+  const s=document.createElement("script");
+  s.src=
+   "https://www.markedsdager.no/wp-json/wp/v2/media/"
+   +id+"?_jsonp="+cb;
+  document.body.appendChild(s);
+}
+
+/* ===== hoofdlogica ===== */
+function handleEvents(events){
+  const today=new Date();
+  today.setHours(0,0,0,0);
+
+  const map={};
+
+  events.forEach(e=>{
+    const text=strip(
+      e.title.rendered+" "+
+      e.excerpt.rendered+" "+
+      e.content.rendered
+    );
+
+    const date=extractEventDate(text);
+    if(!date || date<today) return;   // 🔮 alleen toekomst
+
+    const key=date.getFullYear()+"-"+date.getMonth();
+    if(!map[key]) map[key]=[];
+
+    map[key].push({
+      title:strip(e.title.rendered),
+      excerpt:strip(e.excerpt.rendered),
+      link:e.link,
+      date,
+      place:extractPlace(e.class_list||[]),
+      media:e.featured_media
+    });
+  });
+
+  const container=document.getElementById("events");
+  container.innerHTML="";
+
+  Object.keys(map).sort().forEach(k=>{
+    const d=map[k][0].date;
+    const month=document.createElement("div");
+    month.className="month";
+
+    month.innerHTML=
+      `<h2>${d.toLocaleDateString("nl-NL",
+        {month:"long",year:"numeric"})}</h2>
+       <div class="grid"></div>`;
+
+    const grid=month.querySelector(".grid");
+
+    map[k].sort((a,b)=>a.date-b.date).forEach(e=>{
+      const img=document.createElement("img");
+      if(e.media) loadImage(e.media,img);
+
+      const card=document.createElement("div");
+      card.className="card";
+      card.innerHTML=`
+        <img>
+        <div class="content">
+          <div class="date">
+            ${e.date.toLocaleDateString("nl-NL")}
+          </div>
+          <h3>${e.title}</h3>
+          <p>${e.excerpt}</p>
+          <div class="place">${e.place}</div>
+        </div>`;
+      card.querySelector("img").replaceWith(img);
+      card.onclick=()=>window.open(e.link,"_blank");
+      grid.appendChild(card);
+    });
+
+    container.appendChild(month);
+  });
+}
+
+/* JSONP injectie */
+const s=document.createElement("script");
+s.src=API;
+document.body.appendChild(s);
 </script>
 
 </body>
