@@ -2,7 +2,7 @@
 <html lang="nb">
 <head>
 <meta charset="UTF-8">
-<title>Brukt- og loppemarkeder i Agder</title>
+<title>Brukt‑ og loppemarkeder i Agder</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -71,7 +71,22 @@ tbody tr:hover{background:#eef3ef; cursor:pointer;}
 
 <script>
 /* =====================================================
-   FELLES
+   LOADER FAILSAFE (ESSENTIEEL)
+   ===================================================== */
+let loaderCleared = false;
+
+const loaderTimeout = setTimeout(() => {
+  if (!loaderCleared) {
+    const tbody = document.getElementById("arrangementer");
+    if (tbody && tbody.textContent.includes("Laster")) {
+      tbody.innerHTML =
+        "<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
+    }
+  }
+}, 4000); // 4 sec is ideaal voor JSONP
+
+/* =====================================================
+   FELLES HULPFUNCTIES
    ===================================================== */
 const MONTHS=[
   "januar","februar","mars","april","mai","juni",
@@ -79,7 +94,7 @@ const MONTHS=[
 ];
 
 const tbody=document.getElementById("arrangementer");
-const seen=new Set();
+const shown=new Set();
 
 function strip(html){
   const d=document.createElement("div");
@@ -98,14 +113,26 @@ function formatDato(d){
     <div class="year">${d.getFullYear()}</div>`;
 }
 
+function clearLoaderOnce(){
+  if(!loaderCleared){
+    loaderCleared = true;
+    clearTimeout(loaderTimeout);
+    if (tbody.textContent.includes("Laster")) {
+      tbody.innerHTML = "";
+    }
+  }
+}
+
 function renderEvent(e){
+  clearLoaderOnce();
+
   const key =
     e.start.toDateString()+"|"+
     e.sted.toLowerCase()+"|"+
     e.tittel.toLowerCase();
 
-  if(seen.has(key)) return;
-  seen.add(key);
+  if(shown.has(key)) return;
+  shown.add(key);
 
   const tr=document.createElement("tr");
   tr.onclick=()=>window.open(e.link,"_blank");
@@ -119,12 +146,10 @@ function renderEvent(e){
 }
 
 /* =====================================================
-   MARKEDSDAGER (PRIMAIR, TOLERANT)
+   KILDE 1 — MARKEDSDAGER (PRIMAIR, TOLERANT)
    ===================================================== */
 function visArrangementer(events){
   if(!Array.isArray(events) || events.length===0) return;
-
-  tbody.innerHTML="";
 
   events.forEach(e=>{
     const tekst = strip(
@@ -133,7 +158,7 @@ function visArrangementer(events){
       (e.content?.rendered||"")
     );
 
-    // Probeer datum te vinden – MAAR faal nooit hard
+    // Probeer datum te vinden, maar faal NOOIT hard
     let d = (() => {
       const m = tekst.match(
         /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i
@@ -160,13 +185,9 @@ function visArrangementer(events){
       kilde:"Markedsdager"
     });
   });
-
-  if(!tbody.innerHTML){
-    tbody.innerHTML="<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
-  }
 }
 
-// JSONP – ALLE events (geen eventcat)
+// JSONP laden – GEEN eventcat-filter
 (function(){
   const s=document.createElement("script");
   s.src=
@@ -176,7 +197,7 @@ function visArrangementer(events){
 })();
 
 /* =====================================================
-   VISIT SØRLANDET RSS (SECUNDAIR, KAN NIETS BREKEN)
+   KILDE 2 — VISIT SØRLANDET RSS (SECUNDAIR)
    ===================================================== */
 (function(){
   const RSS =
