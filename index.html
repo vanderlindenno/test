@@ -6,6 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
+/* =====================
+   BASIS
+   ===================== */
 body{
   font-family: system-ui, sans-serif;
   background:#f5f5f5;
@@ -13,14 +16,23 @@ body{
   margin:0;
 }
 
+h1{
+  margin-bottom:1rem;
+}
 h1{margin-bottom:1rem;}
 
+/* =====================
+   TABEL (DESKTOP)
+   ===================== */
 table{
   width:100%;
   border-collapse:collapse;
+  background:#ffffff;
   background:#fff;
 }
 
+th, td{
+  padding:0.75rem 0.6rem;
 th,td{
   padding:.75rem .6rem;
   border-bottom:1px solid #ddd;
@@ -28,9 +40,13 @@ th,td{
   vertical-align:top;
 }
 
+th{
+  background:#f0f0f0;
+}
 th{background:#f0f0f0;}
 
 tbody tr:nth-child(even){background:#f3f6f3;}
+tbody tr:nth-child(odd){background:#ffffff;}
 tbody tr:nth-child(odd){background:#fff;}
 
 tr.clickable{cursor:pointer;}
@@ -51,20 +67,36 @@ tr.kommende-helg{
 }
 
 .year{
+  font-size:0.8rem;
   font-size:.8rem;
   color:#555;
 }
 
+/* =====================
+   MOBIEL KAARTLAYOUT
+   ===================== */
+@media (max-width:700px){
+
+  body{
+    padding:1rem;
+  }
+
+  table, thead, tbody, tr, td{
+    display:block;
+  }
 /* ===== MOBIL ===== */
-/* === MOBIL === */
 @media(max-width:700px){
   body{padding:1rem;}
 
+  thead{
+    display:none;
+  }
   table,thead,tbody,tr,td{display:block;}
   thead{display:none;}
 
   tbody tr{
     margin-bottom:1rem;
+    padding:0.75rem;
     padding:.75rem;
     border-radius:12px;
     box-shadow:0 2px 8px rgba(0,0,0,.06);
@@ -72,16 +104,30 @@ tr.kommende-helg{
 
   td{
     border:none;
+    padding:0.3rem 0;
     padding:.3rem 0;
   }
 
   td::before{
     content:attr(data-label);
     display:block;
+    font-size:0.7rem;
+    text-transform:uppercase;
     font-size:.7rem;
     font-weight:600;
     text-transform:uppercase;
     color:#666;
+    margin-bottom:0.1rem;
+  }
+
+  td:first-child{
+    font-size:1rem;
+    font-weight:600;
+  }
+
+  .badge{
+    display:inline-block;
+    margin-top:0.3rem;
   }
 }
 </style>
@@ -125,6 +171,36 @@ function strip(html){
   return d.textContent.trim();
 }
 
+function finnType(tittel){
+  const t=tittel.toLowerCase();
+  if(t.includes("bondens marked")) return "bondens marked";
+  if(t.includes("høstmarked")) return "høstmarked";
+  if(t.includes("julemarked")) return "julemarked";
+  if(t.includes("fotballcup")) return "fotballcup";
+  return t;
+}
+
+function kapitaliserSted(sted){
+  return sted
+    .split(" ")
+    .map(o=>o.charAt(0).toUpperCase()+o.slice(1).toLowerCase())
+    .join(" ")
+    .replace(/\bOg\b/g,"og");
+}
+
+function finnSted(classes=[]){
+  const c=classes.find(x=>x.startsWith("location-"));
+  return c ? kapitaliserSted(c.replace("location-","").replace(/-/g," ")) : "";
+}
+
+function formatDato(d){
+  const dager=["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
+  const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
+
+  return `
+    ${dager[d.getDay()]} ${d.getDate()}. ${mnd[d.getMonth()]}
+    <div class="year">${d.getFullYear()}</div>
+  `;
 function finnUkedag(text){
   const m=text.toLowerCase().match(
     /(søndag|mandag|tirsdag|onsdag|torsdag|fredag|lørdag)/
@@ -132,7 +208,6 @@ function finnUkedag(text){
   return m ? DAGINDEX[m[1]] : null;
 }
 
-/* --- enkel dato --- */
 function finnDato(text){
   const m=text.toLowerCase().match(
     /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
@@ -142,51 +217,22 @@ function finnDato(text){
   const dag=parseInt(m[1],10);
   const aar=m[3]?parseInt(m[3],10):new Date().getFullYear();
   let dato=new Date(aar,MONTHS[m[2]],dag);
+  if(!m[3] && dato<new Date()) dato=new Date(aar+1,MONTHS[m[2]],dag);
 
   const idag=new Date();
   idag.setHours(0,0,0,0);
 
-  const idag=new Date(); idag.setHours(0,0,0,0);
   if(!m[3] && dato<idag)
     dato=new Date(aar+1,MONTHS[m[2]],dag);
 
   return dato;
 }
 
-/* --- datum of range --- */
-function finnDatoEllerRange(text){
-  const t=text.toLowerCase();
-
-  const r=t.match(
-    /(\d{1,2})\.\s*[–-]\s*(\d{1,2})\.\s*
-    (januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)
-    (?:\s*(\d{4}))?/x
-  );
-
-  const idag=new Date(); idag.setHours(0,0,0,0);
-
-  if(r){
-    const d1=parseInt(r[1],10);
-    const d2=parseInt(r[2],10);
-    const m=MONTHS[r[3]];
-    let y=r[4]?parseInt(r[4],10):idag.getFullYear();
-
-    let start=new Date(y,m,d1);
-    let end=new Date(y,m,d2);
-
-    if(!r[4] && end<idag){
-      start=new Date(y+1,m,d1);
-      end=new Date(y+1,m,d2);
-    }
-
-    return {start,end,isRange:true};
-  }
-
-  const enkel=finnDato(text);
-  return enkel ? {start:enkel,end:enkel,isRange:false} : null;
-}
-
 function kommendeHelg(d){
+  const idag=new Date(); idag.setHours(0,0,0,0);
+  const fredag=new Date(idag);
+  fredag.setDate(idag.getDate()+((5-idag.getDay()+7)%7));
+  const søndag=new Date(fredag); søndag.setDate(fredag.getDate()+2);
   const i=new Date(); i.setHours(0,0,0,0);
   const fredag=new Date(i);
   fredag.setDate(i.getDate()+((5-i.getDay()+7)%7));
@@ -196,29 +242,11 @@ function kommendeHelg(d){
 }
 
 function formatDato(d){
-function formatDatoRange(start,end){
   const dager=["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
   const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
-
-  if(start.getTime()===end.getTime()){
-    return `
-      ${dager[start.getDay()]} ${start.getDate()}. ${mnd[start.getMonth()]}
-      <div class="year">${start.getFullYear()}</div>
-    `;
-  }
-
-  if(start.getMonth()===end.getMonth()){
-    return `
-      ${start.getDate()}.–${end.getDate()}. ${mnd[start.getMonth()]}
-      <div class="year">${start.getFullYear()}</div>
-    `;
-  }
-
   return `
     ${dager[d.getDay()]} ${d.getDate()}. ${mnd[d.getMonth()]}
     <div class="year">${d.getFullYear()}</div>
-    ${start.getDate()}. ${mnd[start.getMonth()]} – ${end.getDate()}. ${mnd[end.getMonth()]}
-    <div class="year">${start.getFullYear()}</div>
   `;
 }
 
@@ -227,6 +255,7 @@ function visArrangementer(events){
   tbody.innerHTML="";
 
   const idag=new Date(); idag.setHours(0,0,0,0);
+  const ettAar=new Date(idag); ettAar.setFullYear(idag.getFullYear()+1);
   const ettAar=new Date(idag);
   ettAar.setFullYear(idag.getFullYear()+1);
 
@@ -234,6 +263,7 @@ function visArrangementer(events){
 
   events
     .map(e=>{
+      const tekst=strip(e.title.rendered+" "+e.excerpt.rendered+" "+e.content.rendered);
       const tekst=strip(
         e.title.rendered+" "+
         e.excerpt.rendered+" "+
@@ -242,47 +272,40 @@ function visArrangementer(events){
 
       const dato=finnDato(tekst);
       if(!dato || dato<idag || dato>ettAar) return null;
-      const periode=finnDatoEllerRange(tekst);
-      if(!periode) return null;
 
-      const {start,end,isRange}=periode;
-      if(end<idag || start>ettAar) return null;
-
+      const sted=finnSted(e.class_list);
       const ukedag=finnUkedag(tekst);
       if(ukedag!==null && ukedag!==dato.getDay())
-      if(!isRange && ukedag!==null && ukedag!==start.getDay())
         return null;
 
       const tittel=strip(e.title.rendered);
+      const type=finnType(tittel);
       const sted=(e.class_list||[])
         .find(c=>c.startsWith("location-"))
         ?.replace("location-","")
         .replace(/-/g," ")
         .replace(/\b\w/g,l=>l.toUpperCase()) || "";
 
+      const nøkkel=`${dato.toDateString()}|${sted}|${type}`;
       const nøkkel=`${dato.toDateString()}|${sted}|${tittel}`;
-      const nøkkel=`${start.toDateString()}|${end.toDateString()}|${sted}|${tittel}`;
       if(brukt.has(nøkkel)) return null;
       brukt.add(nøkkel);
 
+      return {dato, sted, tittel, tekst:strip(e.excerpt.rendered), link:e.link};
       return {dato,sted,tittel,tekst:strip(e.excerpt.rendered),link:e.link};
-      return {start,end,isRange,sted,tittel,tekst:strip(e.excerpt.rendered),link:e.link};
     })
     .filter(Boolean)
     .sort((a,b)=>a.dato-b.dato)
-    .sort((a,b)=>a.start-b.start)
     .forEach(a=>{
       const tr=document.createElement("tr");
       tr.className="clickable";
       if(kommendeHelg(a.dato)) tr.classList.add("kommende-helg");
-      if(!a.isRange && kommendeHelg(a.start)) tr.classList.add("kommende-helg");
       tr.onclick=()=>window.open(a.link,"_blank");
 
       tr.innerHTML=`
         <td data-label="Dato">
           ${formatDato(a.dato)}
           ${kommendeHelg(a.dato) ? "<span class='badge'>Kommende helg</span>" : ""}
-          ${formatDatoRange(a.start,a.end)}
         </td>
         <td data-label="Sted">${a.sted}</td>
         <td data-label="Arrangement">
