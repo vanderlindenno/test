@@ -18,11 +18,11 @@ h1{margin-bottom:1rem;}
 table{
   width:100%;
   border-collapse:collapse;
-  background:#fff;
+  background:#ffffff;
 }
 
 th,td{
-  padding:.75rem .6rem;
+  padding:0.75rem 0.6rem;
   border-bottom:1px solid #ddd;
   text-align:left;
   vertical-align:top;
@@ -31,7 +31,7 @@ th,td{
 th{background:#f0f0f0;}
 
 tbody tr:nth-child(even){background:#f3f6f3;}
-tbody tr:nth-child(odd){background:#fff;}
+tbody tr:nth-child(odd){background:#ffffff;}
 
 tr.clickable{cursor:pointer;}
 tr.clickable:hover{background:#e8eee8;}
@@ -41,12 +41,21 @@ tr.kommende-helg{
   border-left:6px solid #4d7c57;
 }
 
+.badge{
+  margin-left:.5rem;
+  padding:.2rem .5rem;
+  font-size:.7rem;
+  background:#4d7c57;
+  color:#fff;
+  border-radius:4px;
+}
+
 .year{
-  font-size:.8rem;
+  font-size:0.8rem;
   color:#555;
 }
 
-/* MOBIL */
+/* ===== MOBIL ===== */
 @media(max-width:700px){
   body{padding:1rem;}
   table,thead,tbody,tr,td{display:block;}
@@ -95,54 +104,84 @@ tr.kommende-helg{
 </table>
 
 <script>
-/* ================= CONFIG ================= */
 const API =
-  "https://www.markedsdager.no/wp-json/wp/v2/event" +
-  "?eventcat=30&per_page=50&_jsonp=visArrangementer";
+ "https://www.markedsdager.no/wp-json/wp/v2/event" +
+ "?eventcat=30&per_page=50&_jsonp=visArrangementer";
 
-/* ================= HELPERS ================= */
+const MONTHS={
+  januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
+  juli:6,august:7,september:8,oktober:9,november:10,desember:11
+};
+
+const DAGINDEX={
+  søndag:0,mandag:1,tirsdag:2,onsdag:3,
+  torsdag:4,fredag:5,lørdag:6
+};
+
 function strip(html){
   const d=document.createElement("div");
-  d.innerHTML=html || "";
+  d.innerHTML=html;
   return d.textContent.trim();
 }
 
-function parseDate(v){
-  if(!v) return null;
-  const d=new Date(v);
-  return isNaN(d) ? null : d;
+function finnUkedag(text){
+  const m=text.toLowerCase().match(
+    /(søndag|mandag|tirsdag|onsdag|torsdag|fredag|lørdag)/
+  );
+  return m ? DAGINDEX[m[1]] : null;
 }
 
-/*
-  ROBUUSTE DATUMLOGICA
-  - gebruikt echte eventdatums indien aanwezig
-  - fallback naar WordPress date_gmt (bestaat altijd)
-*/
-function hentPeriode(e){
-  const meta = e.meta || {};
-  const acf  = e.acf  || {};
+/* enkel dato */
+function finnDato(text){
+  const m=text.toLowerCase().match(
+    /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
+  );
+  if(!m) return null;
 
-  const start =
-    parseDate(meta.start_date) ||
-    parseDate(meta.event_start) ||
-    parseDate(acf.start_date) ||
-    parseDate(e.event_start) ||
-    parseDate(e.start_date) ||
-    parseDate(e.date_gmt) ||   // ✅ ALTIJD AANWEZIG
-    parseDate(e.date);
+  const dag=parseInt(m[1],10);
+  const aar=m[3]?parseInt(m[3],10):new Date().getFullYear();
+  let dato=new Date(aar,MONTHS[m[2]],dag);
 
-  const end =
-    parseDate(meta.end_date) ||
-    parseDate(meta.event_end) ||
-    parseDate(acf.end_date) ||
-    parseDate(e.event_end) ||
-    parseDate(e.end_date) ||
-    start;
+  const idag=new Date(); idag.setHours(0,0,0,0);
+  if(!m[3] && dato<idag)
+    dato=new Date(aar+1,MONTHS[m[2]],dag);
 
-  return start ? { start, end } : null;
+  return dato;
 }
 
-function komendeHelg(d){
+/* datum of datum-range */
+function finnDatoEllerRange(text){
+  const t=text.toLowerCase();
+
+  const r=t.match(
+    /(\d{1,2})\.\s*[–-]\s*(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
+  );
+
+  const idag=new Date(); idag.setHours(0,0,0,0);
+
+  if(r){
+    let start=new Date(
+      r[4]?parseInt(r[4],10):idag.getFullYear(),
+      MONTHS[r[3]], parseInt(r[1],10)
+    );
+    let end=new Date(
+      r[4]?parseInt(r[4],10):idag.getFullYear(),
+      MONTHS[r[3]], parseInt(r[2],10)
+    );
+
+    if(!r[4] && end<idag){
+      start=new Date(start.getFullYear()+1,start.getMonth(),start.getDate());
+      end=new Date(end.getFullYear()+1,end.getMonth(),end.getDate());
+    }
+
+    return {start,end,isRange:true};
+  }
+
+  const enkel=finnDato(text);
+  return enkel ? {start:enkel,end:enkel,isRange:false} : null;
+}
+
+function kommendeHelg(d){
   const i=new Date(); i.setHours(0,0,0,0);
   const fredag=new Date(i);
   fredag.setDate(i.getDate()+((5-i.getDay()+7)%7));
@@ -153,8 +192,7 @@ function komendeHelg(d){
 
 function formatDatoRange(start,end){
   const dager=["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
-  const mnd=["januar","februar","mars","april","mai","juni",
-             "juli","august","september","oktober","november","desember"];
+  const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
 
   if(start.getTime()===end.getTime()){
     return `
@@ -171,13 +209,11 @@ function formatDatoRange(start,end){
   }
 
   return `
-    ${start.getDate()}. ${mnd[start.getMonth()]} –
-    ${end.getDate()}. ${mnd[end.getMonth()]}
+    ${start.getDate()}. ${mnd[start.getMonth()]} – ${end.getDate()}. ${mnd[end.getMonth()]}
     <div class="year">${start.getFullYear()}</div>
   `;
 }
 
-/* ================= CALLBACK ================= */
 function visArrangementer(events){
   const tbody=document.getElementById("arrangementer");
   tbody.innerHTML="";
@@ -189,56 +225,50 @@ function visArrangementer(events){
 
   events
     .map(e=>{
-      const periode=hentPeriode(e);
+      const tekst=strip(e.title.rendered+" "+e.excerpt.rendered+" "+e.content.rendered);
+      const periode=finnDatoEllerRange(tekst);
       if(!periode) return null;
 
-      const {start,end}=periode;
-      if(end < idag || start > ettAar) return null;
+      const {start,end,isRange}=periode;
+      if(end<idag || start>ettAar) return null;
 
-      const tittel=strip(e.title?.rendered);
-      const tekst=strip(e.excerpt?.rendered);
-      const link=e.link;
+      const ukedag=finnUkedag(tekst);
+      if(!isRange && ukedag!==null && ukedag!==start.getDay())
+        return null;
 
+      const tittel=strip(e.title.rendered);
       const sted=(e.class_list||[])
         .find(c=>c.startsWith("location-"))
-        ?.replace("location-","")
-        .replace(/-/g," ")
+        ?.replace("location-","").replace(/-/g," ")
         .replace(/\b\w/g,l=>l.toUpperCase()) || "";
 
-      const key=`${start}|${end}|${tittel}|${sted}`;
-      if(brukt.has(key)) return null;
-      brukt.add(key);
+      const nøkkel=`${start}|${end}|${sted}|${tittel}`;
+      if(brukt.has(nøkkel)) return null;
+      brukt.add(nøkkel);
 
-      return {start,end,tittel,tekst,sted,link};
+      return {start,end,isRange,sted,tittel,tekst:strip(e.excerpt.rendered),link:e.link};
     })
     .filter(Boolean)
     .sort((a,b)=>a.start-b.start)
     .forEach(a=>{
       const tr=document.createElement("tr");
       tr.className="clickable";
-
-      if(a.start.getTime()===a.end.getTime() && kommendeHelg(a.start))
-        tr.classList.add("kommende-helg");
-
+      if(!a.isRange && kommendeHelg(a.start)) tr.classList.add("kommende-helg");
       tr.onclick=()=>window.open(a.link,"_blank");
 
       tr.innerHTML=`
         <td data-label="Dato">${formatDatoRange(a.start,a.end)}</td>
         <td data-label="Sted">${a.sted}</td>
-        <td data-label="Arrangement">
-          <strong>${a.tittel}</strong><br>${a.tekst}
-        </td>
+        <td data-label="Arrangement"><strong>${a.tittel}</strong><br>${a.tekst}</td>
       `;
       tbody.appendChild(tr);
     });
 
   if(!tbody.innerHTML){
-    tbody.innerHTML=
-      "<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
+    tbody.innerHTML="<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
   }
 }
 
-/* ================= JSONP ================= */
 const s=document.createElement("script");
 s.src=API;
 document.body.appendChild(s);
