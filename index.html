@@ -2,7 +2,7 @@
 <html lang="nb">
 <head>
 <meta charset="UTF-8">
-<title>Arrangementer det kommende året</title>
+<title>Arrangementer – Brukt- og loppemarkeder i Agder</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -12,40 +12,40 @@ body{
   padding:2rem;
   margin:0;
 }
-h1{margin-bottom:1rem;}
+
+h1{ margin-bottom:1rem; }
 
 table{
   width:100%;
   border-collapse:collapse;
-  background:#ffffff;
+  background:#fff;
 }
 
 th, td{
-  padding:0.75rem 0.6rem;
+  padding:.75rem .6rem;
   border-bottom:1px solid #ddd;
   text-align:left;
   vertical-align:top;
 }
 
-th{background:#f0f0f0;}
+th{ background:#f0f0f0; }
 
-.year{
-  font-size:0.8rem;
-  color:#555;
-}
+tbody tr:nth-child(even){ background:#f3f6f3; }
 
-/* ===== MOBIL ===== */
-@media (max-width:700px){
-  body{padding:1rem;}
-  table, thead, tbody, tr, td{display:block;}
-  thead{display:none;}
+.year{ font-size:.8rem; color:#555; }
+
+/* Mobil */
+@media(max-width:700px){
+  body{ padding:1rem; }
+  table, thead, tbody, tr, td{ display:block; }
+  thead{ display:none; }
   tbody tr{
     margin-bottom:1rem;
     padding:.75rem;
-    border-radius:12px;
+    border-radius:10px;
     box-shadow:0 2px 8px rgba(0,0,0,.06);
   }
-  td{border:none;padding:.3rem 0;}
+  td{ border:none; padding:.3rem 0; }
   td::before{
     content:attr(data-label);
     display:block;
@@ -60,60 +60,36 @@ th{background:#f0f0f0;}
 
 <body>
 
-<h1>Arrangementer det kommende året</h1>
+<h1>Brukt- og loppemarkeder i Agder</h1>
 
 <table>
-  <thead>
-    <tr>
-      <th>Dato</th>
-      <th>Sted</th>
-      <th>Arrangement</th>
-    </tr>
-  </thead>
-  <tbody id="arrangementer">
-    <tr><td colspan="3">Laster arrangementer…</td></tr>
-  </tbody>
+<thead>
+<tr>
+  <th>Dato</th>
+  <th>Sted</th>
+  <th>Arrangement</th>
+</tr>
+</thead>
+<tbody id="arrangementer">
+  <tr><td colspan="3">Laster arrangementer…</td></tr>
+</tbody>
 </table>
 
 <script>
-const API =
-  "https://www.markedsdager.no/wp-json/wp/v2/event" +
-  "?eventcat=30&per_page=30&_jsonp=visArrangementer";
+/* ===============================
+   FELLES DATA
+   =============================== */
 
-let arrangementerLastet = false;
+const MONTHS=["januar","februar","mars","april","mai","juni",
+              "juli","august","september","oktober","november","desember"];
 
-/* ===== fallback melding ===== */
-setTimeout(() => {
-  if(!arrangementerLastet){
-    document.getElementById("arrangementer").innerHTML = `
-      <tr>
-        <td colspan="3">
-          Arrangementer er midlertidig utilgjengelige.<br>
-          Vi jobber med å hente dem – vennligst prøv igjen senere.
-        </td>
-      </tr>`;
-  }
-}, 6000);
+let alleEvents = [];
+let ferdigKilder = 0;
+const TOTALE_KILDER = 2;
 
-/* ===== JSONP ===== */
-const s=document.createElement("script");
-s.src=API;
-s.onerror=()=> {
-  document.getElementById("arrangementer").innerHTML = `
-    <tr>
-      <td colspan="3">
-        Arrangementer er midlertidig utilgjengelige.<br>
-        Vi jobber med å hente dem – vennligst prøv igjen senere.
-      </td>
-    </tr>`;
-};
-document.body.appendChild(s);
-
-/* ===== LOGICA ===== */
-const MONTHS={
-  januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
-  juli:6,august:7,september:8,oktober:9,november:10,desember:11
-};
+/* ===============================
+   HJELPERE
+   =============================== */
 
 function strip(html){
   const d=document.createElement("div");
@@ -121,86 +97,132 @@ function strip(html){
   return d.textContent.trim();
 }
 
-function finnDatoEllerRange(text){
-  const idag=new Date(); idag.setHours(0,0,0,0);
-
-  const r=text.match(
-    /(\d{1,2})\.\s*[–-]\s*(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i
-  );
-
-  if(r){
-    let y=r[4]?parseInt(r[4],10):idag.getFullYear();
-    let start=new Date(y,MONTHS[r[3].toLowerCase()],parseInt(r[1],10));
-    let end=new Date(y,MONTHS[r[3].toLowerCase()],parseInt(r[2],10));
-    if(!r[4] && end<idag){ start.setFullYear(y+1); end.setFullYear(y+1); }
-    return {start,end};
-  }
-
-  const m=text.match(
-    /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i
-  );
-  if(!m) return null;
-
-  let y=m[3]?parseInt(m[3],10):idag.getFullYear();
-  let d=new Date(y,MONTHS[m[2].toLowerCase()],parseInt(m[1],10));
-  if(!m[3] && d<idag) d.setFullYear(y+1);
-  return {start:d,end:d};
-}
-
 function formatDato(start,end){
-  const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
   if(start.getTime()===end.getTime()){
-    return `${start.getDate()}. ${mnd[start.getMonth()]}<div class="year">${start.getFullYear()}</div>`;
+    return `${start.getDate()}. ${MONTHS[start.getMonth()]}
+      <div class="year">${start.getFullYear()}</div>`;
   }
-  return `${start.getDate()}.–${end.getDate()}. ${mnd[start.getMonth()]}<div class="year">${start.getFullYear()}</div>`;
+  return `${start.getDate()}.–${end.getDate()}. ${MONTHS[start.getMonth()]}
+    <div class="year">${start.getFullYear()}</div>`;
 }
 
-function visArrangementer(events){
-  arrangementerLastet = true;
+function ferdig(){
+  ferdigKilder++;
+  if(ferdigKilder === TOTALE_KILDER){
+    render();
+  }
+}
+
+/* ===============================
+   RENDER
+   =============================== */
+
+function render(){
   const tbody=document.getElementById("arrangementer");
   tbody.innerHTML="";
 
   const idag=new Date(); idag.setHours(0,0,0,0);
   const ettAar=new Date(idag); ettAar.setFullYear(idag.getFullYear()+1);
 
-  events.map(e=>{
+  const brukt=new Set();
+
+  alleEvents
+    .filter(e=>e.start>=idag && e.start<=ettAar)
+    .sort((a,b)=>a.start-b.start)
+    .filter(e=>{
+      const key=e.start.toDateString()+"|"+e.sted.toLowerCase()+"|"+e.tittel.toLowerCase();
+      if(brukt.has(key)) return false;
+      brukt.add(key);
+      return true;
+    })
+    .forEach(e=>{
+      const tr=document.createElement("tr");
+      tr.onclick=()=>window.open(e.link,"_blank");
+      tr.innerHTML=`
+        <td data-label="Dato">${formatDato(e.start,e.end)}</td>
+        <td data-label="Sted">${e.sted}</td>
+        <td data-label="Arrangement">
+          <strong>${e.tittel}</strong><br>${e.tekst || ""}
+        </td>`;
+      tbody.appendChild(tr);
+    });
+
+  if(!tbody.innerHTML){
+    tbody.innerHTML="<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
+  }
+}
+
+/* ===============================
+   KILDE 1: MARKEDSDAGER (JSONP)
+   =============================== */
+
+function visArrangementer(events){
+  events.forEach(e=>{
     const tekst = strip(
       (e.title?.rendered||"")+" "+
       (e.excerpt?.rendered||"")+" "+
       (e.content?.rendered||"")
     );
 
-    const p=finnDatoEllerRange(tekst);
-    if(!p || p.end<idag || p.start>ettAar) return null;
+    const m = tekst.match(/(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i);
+    if(!m) return;
 
-    return {
-      start:p.start,
-      end:p.end,
-      tittel:strip(e.title?.rendered),
-      tekst:strip(e.excerpt?.rendered),
+    let y = m[3] ? parseInt(m[3],10) : new Date().getFullYear();
+    let d = new Date(y, MONTHS.indexOf(m[2].toLowerCase()), parseInt(m[1],10));
+
+    alleEvents.push({
+      start:d,
+      end:d,
+      tittel: strip(e.title?.rendered),
+      tekst: strip(e.excerpt?.rendered),
       sted:(e.class_list||[]).find(c=>c.startsWith("location-"))
         ?.replace("location-","").replace(/-/g," ")
-        .replace(/\b\w/g,l=>l.toUpperCase()) || "",
-      link:e.link
-    };
-  })
-  .filter(Boolean)
-  .sort((a,b)=>a.start-b.start)
-  .forEach(a=>{
-    const tr=document.createElement("tr");
-    tr.onclick=()=>window.open(a.link,"_blank");
-    tr.innerHTML=`
-      <td data-label="Dato">${formatDato(a.start,a.end)}</td>
-      <td data-label="Sted">${a.sted}</td>
-      <td data-label="Arrangement"><strong>${a.tittel}</strong><br>${a.tekst}</td>
-    `;
-    tbody.appendChild(tr);
+        .replace(/\b\w/g,l=>l.toUpperCase()) || "Agder",
+      link:e.link,
+      kilde:"Markedsdager"
+    });
   });
-
-  if(!tbody.innerHTML){
-    tbody.innerHTML="<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
-  }
+  ferdig();
 }
+
+(function(){
+  const s=document.createElement("script");
+  s.src="https://www.markedsdager.no/wp-json/wp/v2/event?eventcat=30&per_page=30&_jsonp=visArrangementer";
+  document.body.appendChild(s);
+})();
+
+/* ===============================
+   KILDE 2: VISIT SØRLANDET (RSS)
+   =============================== */
+
+(function(){
+  const RSS =
+    "https://api.rss2json.com/v1/api.json?rss_url=" +
+    encodeURIComponent("https://en.visitsorlandet.com/event/rss/");
+
+  fetch(RSS)
+    .then(r=>r.json())
+    .then(data=>{
+      (data.items||[])
+        .filter(i=>/brukt|lopp|marked|bytt/i.test(
+          (i.title||"")+" "+(i.description||"")
+        ))
+        .forEach(i=>{
+          const d=new Date(i.pubDate);
+          d.setHours(0,0,0,0);
+          alleEvents.push({
+            start:d,
+            end:d,
+            tittel:i.title,
+            tekst:strip(i.description),
+            sted:"Agder",
+            link:i.link,
+            kilde:"Visit Sørlandet"
+          });
+        });
+    })
+    .finally(ferdig);
+})();
 </script>
 
 </body>
