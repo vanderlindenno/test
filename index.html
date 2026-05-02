@@ -95,12 +95,12 @@ tr.kommende-helg{
 </table>
 
 <script>
-/* ========= KONFIG ========= */
+/* ================= CONFIG ================= */
 const API =
   "https://www.markedsdager.no/wp-json/wp/v2/event" +
   "?eventcat=30&per_page=50&_jsonp=visArrangementer";
 
-/* ========= HELPERS ========= */
+/* ================= HELPERS ================= */
 function strip(html){
   const d=document.createElement("div");
   d.innerHTML=html || "";
@@ -113,24 +113,36 @@ function parseDate(v){
   return isNaN(d) ? null : d;
 }
 
-/* Hent sikre start-/sluttdatoer */
+/*
+  ROBUUSTE DATUMLOGICA
+  - gebruikt echte eventdatums indien aanwezig
+  - fallback naar WordPress date_gmt (bestaat altijd)
+*/
 function hentPeriode(e){
-  const acf=e.acf || {};
-  const start=
+  const meta = e.meta || {};
+  const acf  = e.acf  || {};
+
+  const start =
+    parseDate(meta.start_date) ||
+    parseDate(meta.event_start) ||
     parseDate(acf.start_date) ||
     parseDate(e.event_start) ||
-    parseDate(e.start_date);
+    parseDate(e.start_date) ||
+    parseDate(e.date_gmt) ||   // ✅ ALTIJD AANWEZIG
+    parseDate(e.date);
 
-  const end=
+  const end =
+    parseDate(meta.end_date) ||
+    parseDate(meta.event_end) ||
     parseDate(acf.end_date) ||
     parseDate(e.event_end) ||
     parseDate(e.end_date) ||
     start;
 
-  return start ? {start,end} : null;
+  return start ? { start, end } : null;
 }
 
-function kommendeHelg(d){
+function komendeHelg(d){
   const i=new Date(); i.setHours(0,0,0,0);
   const fredag=new Date(i);
   fredag.setDate(i.getDate()+((5-i.getDay()+7)%7));
@@ -165,7 +177,7 @@ function formatDatoRange(start,end){
   `;
 }
 
-/* ========= CALLBACK ========= */
+/* ================= CALLBACK ================= */
 function visArrangementer(events){
   const tbody=document.getElementById("arrangementer");
   tbody.innerHTML="";
@@ -181,7 +193,7 @@ function visArrangementer(events){
       if(!periode) return null;
 
       const {start,end}=periode;
-      if(end<idag || start>ettAar) return null;
+      if(end < idag || start > ettAar) return null;
 
       const tittel=strip(e.title?.rendered);
       const tekst=strip(e.excerpt?.rendered);
@@ -226,7 +238,7 @@ function visArrangementer(events){
   }
 }
 
-/* ========= JSONP ========= */
+/* ================= JSONP ================= */
 const s=document.createElement("script");
 s.src=API;
 document.body.appendChild(s);
