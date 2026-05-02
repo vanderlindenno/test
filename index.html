@@ -17,7 +17,7 @@ h1{margin-bottom:1rem;}
 table{
   width:100%;
   border-collapse:collapse;
-  background:#fff;
+  background:#ffffff;
 }
 th,td{
   padding:.75rem .6rem;
@@ -54,7 +54,7 @@ tbody tr:hover{background:#eef3ef; cursor:pointer;}
 
 <body>
 
-<h1>Brukt- og loppemarkeder i Agder</h1>
+<h1>Brukt‑ og loppemarkeder i Agder</h1>
 
 <table>
 <thead>
@@ -65,21 +65,21 @@ tbody tr:hover{background:#eef3ef; cursor:pointer;}
 </tr>
 </thead>
 <tbody id="arrangementer">
-  <tr><td colspan="3">Laster arrangementer…</td></tr>
+<tr><td colspan="3">Laster arrangementer…</td></tr>
 </tbody>
 </table>
 
 <script>
-/* =========================================================
+/* =====================================================
    FELLES
-   ========================================================= */
+   ===================================================== */
 const MONTHS=[
   "januar","februar","mars","april","mai","juni",
   "juli","august","september","oktober","november","desember"
 ];
 
 const tbody=document.getElementById("arrangementer");
-const viste=new Set();
+const seen=new Set();
 
 function strip(html){
   const d=document.createElement("div");
@@ -104,8 +104,8 @@ function renderEvent(e){
     e.sted.toLowerCase()+"|"+
     e.tittel.toLowerCase();
 
-  if(viste.has(key)) return;
-  viste.add(key);
+  if(seen.has(key)) return;
+  seen.add(key);
 
   const tr=document.createElement("tr");
   tr.onclick=()=>window.open(e.link,"_blank");
@@ -118,12 +118,13 @@ function renderEvent(e){
   tbody.appendChild(tr);
 }
 
-/* =========================================================
-   KILDE 1 — MARKEDSDAGER (PRIMAIR, TOLERANT)
-   Dit is bewust bijna identiek aan de oude werkende logica
-   ========================================================= */
+/* =====================================================
+   MARKEDSDAGER (PRIMAIR, TOLERANT)
+   ===================================================== */
 function visArrangementer(events){
-  tbody.innerHTML=""; // leeg zodra eerste echte data komt
+  if(!Array.isArray(events) || events.length===0) return;
+
+  tbody.innerHTML="";
 
   events.forEach(e=>{
     const tekst = strip(
@@ -132,12 +133,13 @@ function visArrangementer(events){
       (e.content?.rendered||"")
     );
 
-    // Probeer datum te vinden, MAAR faal niet hard
+    // Probeer datum te vinden – MAAR faal nooit hard
     let d = (() => {
       const m = tekst.match(
         /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i
       );
-      if(!m) return today();   // ← hier zat de regressie: nu tolerant
+      if(!m) return today();
+
       let y = m[3]?parseInt(m[3],10):new Date().getFullYear();
       let dt = new Date(y, MONTHS.indexOf(m[2].toLowerCase()), parseInt(m[1],10));
       if(!m[3] && dt < today()) dt.setFullYear(y+1);
@@ -164,18 +166,18 @@ function visArrangementer(events){
   }
 }
 
-// JSONP laden
+// JSONP – ALLE events (geen eventcat)
 (function(){
   const s=document.createElement("script");
   s.src=
     "https://www.markedsdager.no/wp-json/wp/v2/event" +
-    "?eventcat=30&per_page=30&_jsonp=visArrangementer";
+    "?per_page=50&_jsonp=visArrangementer";
   document.body.appendChild(s);
 })();
 
-/* =========================================================
-   KILDE 2 — VISIT SØRLANDET RSS (SECUNDAIR, NOOIT BLOKKEREND)
-   ========================================================= */
+/* =====================================================
+   VISIT SØRLANDET RSS (SECUNDAIR, KAN NIETS BREKEN)
+   ===================================================== */
 (function(){
   const RSS =
     "https://api.rss2json.com/v1/api.json?rss_url=" +
@@ -185,7 +187,6 @@ function visArrangementer(events){
     .then(r=>r.json())
     .then(data=>{
       (data.items||[]).forEach(i=>{
-        // RSS mag streng zijn
         if(!/brukt|lopp|marked|bytt|gjenbruk|second|brocante/i.test(
           (i.title||"")+" "+(i.description||"")
         )) return;
