@@ -12,7 +12,6 @@ body{
   padding:2rem;
   margin:0;
 }
-
 h1{margin-bottom:1rem;}
 
 table{
@@ -21,7 +20,7 @@ table{
   background:#ffffff;
 }
 
-th,td{
+th, td{
   padding:0.75rem 0.6rem;
   border-bottom:1px solid #ddd;
   text-align:left;
@@ -30,49 +29,23 @@ th,td{
 
 th{background:#f0f0f0;}
 
-tbody tr:nth-child(even){background:#f3f6f3;}
-tbody tr:nth-child(odd){background:#ffffff;}
-
-tr.clickable{cursor:pointer;}
-tr.clickable:hover{background:#e8eee8;}
-
-tr.kommende-helg{
-  background:#dfeee2 !important;
-  border-left:6px solid #4d7c57;
-}
-
-.badge{
-  margin-left:.5rem;
-  padding:.2rem .5rem;
-  font-size:.7rem;
-  background:#4d7c57;
-  color:#fff;
-  border-radius:4px;
-}
-
 .year{
   font-size:0.8rem;
   color:#555;
 }
 
 /* ===== MOBIL ===== */
-@media(max-width:700px){
+@media (max-width:700px){
   body{padding:1rem;}
-  table,thead,tbody,tr,td{display:block;}
+  table, thead, tbody, tr, td{display:block;}
   thead{display:none;}
-
   tbody tr{
     margin-bottom:1rem;
     padding:.75rem;
     border-radius:12px;
     box-shadow:0 2px 8px rgba(0,0,0,.06);
   }
-
-  td{
-    border:none;
-    padding:.3rem 0;
-  }
-
+  td{border:none;padding:.3rem 0;}
   td::before{
     content:attr(data-label);
     display:block;
@@ -80,7 +53,6 @@ tr.kommende-helg{
     font-weight:600;
     text-transform:uppercase;
     color:#666;
-    margin-bottom:.1rem;
   }
 }
 </style>
@@ -105,173 +77,130 @@ tr.kommende-helg{
 
 <script>
 const API =
- "https://www.markedsdager.no/wp-json/wp/v2/event" +
- "?eventcat=30&per_page=50&_jsonp=visArrangementer";
+  "https://www.markedsdager.no/wp-json/wp/v2/event" +
+  "?eventcat=30&per_page=30&_jsonp=visArrangementer";
 
+let arrangementerLastet = false;
+
+/* ===== fallback melding ===== */
+setTimeout(() => {
+  if(!arrangementerLastet){
+    document.getElementById("arrangementer").innerHTML = `
+      <tr>
+        <td colspan="3">
+          Arrangementer er midlertidig utilgjengelige.<br>
+          Vi jobber med å hente dem – vennligst prøv igjen senere.
+        </td>
+      </tr>`;
+  }
+}, 6000);
+
+/* ===== JSONP ===== */
+const s=document.createElement("script");
+s.src=API;
+s.onerror=()=> {
+  document.getElementById("arrangementer").innerHTML = `
+    <tr>
+      <td colspan="3">
+        Arrangementer er midlertidig utilgjengelige.<br>
+        Vi jobber med å hente dem – vennligst prøv igjen senere.
+      </td>
+    </tr>`;
+};
+document.body.appendChild(s);
+
+/* ===== LOGICA ===== */
 const MONTHS={
   januar:0,februar:1,mars:2,april:3,mai:4,juni:5,
   juli:6,august:7,september:8,oktober:9,november:10,desember:11
 };
 
-const DAGINDEX={
-  søndag:0,mandag:1,tirsdag:2,onsdag:3,
-  torsdag:4,fredag:5,lørdag:6
-};
-
 function strip(html){
   const d=document.createElement("div");
-  d.innerHTML=html;
+  d.innerHTML=html||"";
   return d.textContent.trim();
 }
 
-function finnUkedag(text){
-  const m=text.toLowerCase().match(
-    /(søndag|mandag|tirsdag|onsdag|torsdag|fredag|lørdag)/
-  );
-  return m ? DAGINDEX[m[1]] : null;
-}
+function finnDatoEllerRange(text){
+  const idag=new Date(); idag.setHours(0,0,0,0);
 
-/* enkel dato */
-function finnDato(text){
-  const m=text.toLowerCase().match(
-    /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
+  const r=text.match(
+    /(\d{1,2})\.\s*[–-]\s*(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i
+  );
+
+  if(r){
+    let y=r[4]?parseInt(r[4],10):idag.getFullYear();
+    let start=new Date(y,MONTHS[r[3].toLowerCase()],parseInt(r[1],10));
+    let end=new Date(y,MONTHS[r[3].toLowerCase()],parseInt(r[2],10));
+    if(!r[4] && end<idag){ start.setFullYear(y+1); end.setFullYear(y+1); }
+    return {start,end};
+  }
+
+  const m=text.match(
+    /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i
   );
   if(!m) return null;
 
-  const dag=parseInt(m[1],10);
-  const aar=m[3]?parseInt(m[3],10):new Date().getFullYear();
-  let dato=new Date(aar,MONTHS[m[2]],dag);
-
-  const idag=new Date(); idag.setHours(0,0,0,0);
-  if(!m[3] && dato<idag)
-    dato=new Date(aar+1,MONTHS[m[2]],dag);
-
-  return dato;
+  let y=m[3]?parseInt(m[3],10):idag.getFullYear();
+  let d=new Date(y,MONTHS[m[2].toLowerCase()],parseInt(m[1],10));
+  if(!m[3] && d<idag) d.setFullYear(y+1);
+  return {start:d,end:d};
 }
 
-/* datum of datum-range */
-function finnDatoEllerRange(text){
-  const t=text.toLowerCase();
-
-  const r=t.match(
-    /(\d{1,2})\.\s*[–-]\s*(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/
-  );
-
-  const idag=new Date(); idag.setHours(0,0,0,0);
-
-  if(r){
-    let start=new Date(
-      r[4]?parseInt(r[4],10):idag.getFullYear(),
-      MONTHS[r[3]], parseInt(r[1],10)
-    );
-    let end=new Date(
-      r[4]?parseInt(r[4],10):idag.getFullYear(),
-      MONTHS[r[3]], parseInt(r[2],10)
-    );
-
-    if(!r[4] && end<idag){
-      start=new Date(start.getFullYear()+1,start.getMonth(),start.getDate());
-      end=new Date(end.getFullYear()+1,end.getMonth(),end.getDate());
-    }
-
-    return {start,end,isRange:true};
-  }
-
-  const enkel=finnDato(text);
-  return enkel ? {start:enkel,end:enkel,isRange:false} : null;
-}
-
-function kommendeHelg(d){
-  const i=new Date(); i.setHours(0,0,0,0);
-  const fredag=new Date(i);
-  fredag.setDate(i.getDate()+((5-i.getDay()+7)%7));
-  const søndag=new Date(fredag);
-  søndag.setDate(fredag.getDate()+2);
-  return d>=fredag && d<=søndag;
-}
-
-function formatDatoRange(start,end){
-  const dager=["Søndag","Mandag","Tirsdag","Onsdag","Torsdag","Fredag","Lørdag"];
+function formatDato(start,end){
   const mnd=["januar","februar","mars","april","mai","juni","juli","august","september","oktober","november","desember"];
-
   if(start.getTime()===end.getTime()){
-    return `
-      ${dager[start.getDay()]} ${start.getDate()}. ${mnd[start.getMonth()]}
-      <div class="year">${start.getFullYear()}</div>
-    `;
+    return `${start.getDate()}. ${mnd[start.getMonth()]}<div class="year">${start.getFullYear()}</div>`;
   }
-
-  if(start.getMonth()===end.getMonth()){
-    return `
-      ${start.getDate()}.–${end.getDate()}. ${mnd[start.getMonth()]}
-      <div class="year">${start.getFullYear()}</div>
-    `;
-  }
-
-  return `
-    ${start.getDate()}. ${mnd[start.getMonth()]} – ${end.getDate()}. ${mnd[end.getMonth()]}
-    <div class="year">${start.getFullYear()}</div>
-  `;
+  return `${start.getDate()}.–${end.getDate()}. ${mnd[start.getMonth()]}<div class="year">${start.getFullYear()}</div>`;
 }
 
 function visArrangementer(events){
+  arrangementerLastet = true;
   const tbody=document.getElementById("arrangementer");
   tbody.innerHTML="";
 
   const idag=new Date(); idag.setHours(0,0,0,0);
   const ettAar=new Date(idag); ettAar.setFullYear(idag.getFullYear()+1);
 
-  const brukt=new Set();
+  events.map(e=>{
+    const tekst = strip(
+      (e.title?.rendered||"")+" "+
+      (e.excerpt?.rendered||"")+" "+
+      (e.content?.rendered||"")
+    );
 
-  events
-    .map(e=>{
-      const tekst=strip(e.title.rendered+" "+e.excerpt.rendered+" "+e.content.rendered);
-      const periode=finnDatoEllerRange(tekst);
-      if(!periode) return null;
+    const p=finnDatoEllerRange(tekst);
+    if(!p || p.end<idag || p.start>ettAar) return null;
 
-      const {start,end,isRange}=periode;
-      if(end<idag || start>ettAar) return null;
-
-      const ukedag=finnUkedag(tekst);
-      if(!isRange && ukedag!==null && ukedag!==start.getDay())
-        return null;
-
-      const tittel=strip(e.title.rendered);
-      const sted=(e.class_list||[])
-        .find(c=>c.startsWith("location-"))
+    return {
+      start:p.start,
+      end:p.end,
+      tittel:strip(e.title?.rendered),
+      tekst:strip(e.excerpt?.rendered),
+      sted:(e.class_list||[]).find(c=>c.startsWith("location-"))
         ?.replace("location-","").replace(/-/g," ")
-        .replace(/\b\w/g,l=>l.toUpperCase()) || "";
-
-      const nøkkel=`${start}|${end}|${sted}|${tittel}`;
-      if(brukt.has(nøkkel)) return null;
-      brukt.add(nøkkel);
-
-      return {start,end,isRange,sted,tittel,tekst:strip(e.excerpt.rendered),link:e.link};
-    })
-    .filter(Boolean)
-    .sort((a,b)=>a.start-b.start)
-    .forEach(a=>{
-      const tr=document.createElement("tr");
-      tr.className="clickable";
-      if(!a.isRange && kommendeHelg(a.start)) tr.classList.add("kommende-helg");
-      tr.onclick=()=>window.open(a.link,"_blank");
-
-      tr.innerHTML=`
-        <td data-label="Dato">${formatDatoRange(a.start,a.end)}</td>
-        <td data-label="Sted">${a.sted}</td>
-        <td data-label="Arrangement"><strong>${a.tittel}</strong><br>${a.tekst}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+        .replace(/\b\w/g,l=>l.toUpperCase()) || "",
+      link:e.link
+    };
+  })
+  .filter(Boolean)
+  .sort((a,b)=>a.start-b.start)
+  .forEach(a=>{
+    const tr=document.createElement("tr");
+    tr.onclick=()=>window.open(a.link,"_blank");
+    tr.innerHTML=`
+      <td data-label="Dato">${formatDato(a.start,a.end)}</td>
+      <td data-label="Sted">${a.sted}</td>
+      <td data-label="Arrangement"><strong>${a.tittel}</strong><br>${a.tekst}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 
   if(!tbody.innerHTML){
     tbody.innerHTML="<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
   }
 }
-
-const s=document.createElement("script");
-s.src=API;
-document.body.appendChild(s);
 </script>
 
 </body>
