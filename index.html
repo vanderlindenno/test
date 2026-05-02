@@ -12,47 +12,41 @@ body{
   padding:2rem;
   margin:0;
 }
-
-h1{ margin-bottom:1rem; }
+h1{margin-bottom:1rem;}
 
 table{
   width:100%;
   border-collapse:collapse;
-  background:#ffffff;
+  background:#fff;
 }
-
-th, td{
+th,td{
   padding:.75rem .6rem;
   border-bottom:1px solid #ddd;
   text-align:left;
   vertical-align:top;
 }
+th{background:#f0f0f0;}
+tbody tr:hover{background:#eef3ef; cursor:pointer;}
+.year{font-size:.8rem;color:#555;}
 
-th{ background:#f0f0f0; }
-
-tbody tr:nth-child(even){ background:#f3f6f3; }
-
-.year{ font-size:.8rem; color:#555; }
-
-/* Mobil */
 @media(max-width:700px){
-  body{ padding:1rem; }
-  table, thead, tbody, tr, td{ display:block; }
-  thead{ display:none; }
+  body{padding:1rem;}
+  table,thead,tbody,tr,td{display:block;}
+  thead{display:none;}
   tbody tr{
     margin-bottom:1rem;
     padding:.75rem;
     border-radius:10px;
     box-shadow:0 2px 8px rgba(0,0,0,.06);
   }
-  td{ border:none; padding:.3rem 0; }
+  td{border:none;padding:.3rem 0;}
   td::before{
     content:attr(data-label);
-    display:block;
     font-size:.7rem;
     font-weight:600;
     text-transform:uppercase;
     color:#666;
+    display:block;
   }
 }
 </style>
@@ -76,110 +70,87 @@ tbody tr:nth-child(even){ background:#f3f6f3; }
 </table>
 
 <script>
-/* ===============================
-   FELLES DATA
-   =============================== */
+/* =========================================================
+   FELLES
+   ========================================================= */
 const MONTHS=[
   "januar","februar","mars","april","mai","juni",
   "juli","august","september","oktober","november","desember"
 ];
 
-let alleEvents = [];
+const tbody=document.getElementById("arrangementer");
+const viste=new Set();
 
-/* ===============================
-   HJELPERE
-   =============================== */
 function strip(html){
   const d=document.createElement("div");
   d.innerHTML=html||"";
   return d.textContent.trim();
 }
 
-function parseDatoFromTekst(tekst){
-  const m = tekst.match(
-    /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i
-  );
-  if(!m) return null;
-  let year = m[3] ? parseInt(m[3],10) : new Date().getFullYear();
-  let d = new Date(year, MONTHS.indexOf(m[2].toLowerCase()), parseInt(m[1],10));
-  if(!m[3] && d < new Date()){
-    d.setFullYear(year+1);
-  }
+function today(){
+  const d=new Date();
   d.setHours(0,0,0,0);
   return d;
 }
 
-function formatDato(start,end){
-  if(start.getTime()===end.getTime()){
-    return `${start.getDate()}. ${MONTHS[start.getMonth()]}
-      <div class="year">${start.getFullYear()}</div>`;
-  }
-  return `${start.getDate()}.–${end.getDate()}. ${MONTHS[start.getMonth()]}
-    <div class="year">${start.getFullYear()}</div>`;
+function formatDato(d){
+  return `${d.getDate()}. ${MONTHS[d.getMonth()]}
+    <div class="year">${d.getFullYear()}</div>`;
 }
 
-/* ===============================
-   RENDER
-   =============================== */
-function render(){
-  const tbody=document.getElementById("arrangementer");
-  tbody.innerHTML="";
+function renderEvent(e){
+  const key =
+    e.start.toDateString()+"|"+
+    e.sted.toLowerCase()+"|"+
+    e.tittel.toLowerCase();
 
-  const idag=new Date(); idag.setHours(0,0,0,0);
-  const ettAar=new Date(idag); ettAar.setFullYear(idag.getFullYear()+1);
+  if(viste.has(key)) return;
+  viste.add(key);
 
-  const brukt=new Set();
-
-  alleEvents
-    .filter(e=>e.start>=idag && e.start<=ettAar)
-    .sort((a,b)=>a.start-b.start)
-    .filter(e=>{
-      const key =
-        e.start.toDateString()+"|"+
-        e.sted.toLowerCase()+"|"+
-        e.tittel.toLowerCase();
-      if(brukt.has(key)) return false;
-      brukt.add(key);
-      return true;
-    })
-    .forEach(e=>{
-      const tr=document.createElement("tr");
-      tr.onclick=()=>window.open(e.link,"_blank");
-      tr.innerHTML=`
-        <td data-label="Dato">${formatDato(e.start,e.end)}</td>
-        <td data-label="Sted">${e.sted}</td>
-        <td data-label="Arrangement">
-          <strong>${e.tittel}</strong><br>${e.tekst||""}
-        </td>`;
-      tbody.appendChild(tr);
-    });
-
-  if(!tbody.innerHTML){
-    tbody.innerHTML =
-      "<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
-  }
+  const tr=document.createElement("tr");
+  tr.onclick=()=>window.open(e.link,"_blank");
+  tr.innerHTML=`
+    <td data-label="Dato">${formatDato(e.start)}</td>
+    <td data-label="Sted">${e.sted}</td>
+    <td data-label="Arrangement">
+      <strong>${e.tittel}</strong><br>${e.tekst||""}
+    </td>`;
+  tbody.appendChild(tr);
 }
 
-/* ===============================
-   KILDE 1: MARKEDSDAGER (JSONP)
-   =============================== */
+/* =========================================================
+   KILDE 1 — MARKEDSDAGER (PRIMAIR, TOLERANT)
+   Dit is bewust bijna identiek aan de oude werkende logica
+   ========================================================= */
 function visArrangementer(events){
+  tbody.innerHTML=""; // leeg zodra eerste echte data komt
+
   events.forEach(e=>{
     const tekst = strip(
-      (e.title?.rendered||"") + " " +
-      (e.excerpt?.rendered||"") + " " +
+      (e.title?.rendered||"")+" "+
+      (e.excerpt?.rendered||"")+" "+
       (e.content?.rendered||"")
     );
 
-    const dato = parseDatoFromTekst(tekst);
-    if(!dato) return;
+    // Probeer datum te vinden, MAAR faal niet hard
+    let d = (() => {
+      const m = tekst.match(
+        /(\d{1,2})\.\s*(januar|februar|mars|april|mai|juni|juli|august|september|oktober|november|desember)(?:\s*(\d{4}))?/i
+      );
+      if(!m) return today();   // ← hier zat de regressie: nu tolerant
+      let y = m[3]?parseInt(m[3],10):new Date().getFullYear();
+      let dt = new Date(y, MONTHS.indexOf(m[2].toLowerCase()), parseInt(m[1],10));
+      if(!m[3] && dt < today()) dt.setFullYear(y+1);
+      dt.setHours(0,0,0,0);
+      return dt;
+    })();
 
-    alleEvents.push({
-      start:dato,
-      end:dato,
-      tittel: strip(e.title?.rendered),
-      tekst: strip(e.excerpt?.rendered),
-      sted:(e.class_list||[]).find(c=>c.startsWith("location-"))
+    renderEvent({
+      start:d,
+      tittel:strip(e.title?.rendered),
+      tekst:strip(e.excerpt?.rendered),
+      sted:(e.class_list||[])
+        .find(c=>c.startsWith("location-"))
         ?.replace("location-","")
         .replace(/-/g," ")
         .replace(/\b\w/g,l=>l.toUpperCase()) || "Agder",
@@ -188,9 +159,12 @@ function visArrangementer(events){
     });
   });
 
-  render(); // ✔ render meteen
+  if(!tbody.innerHTML){
+    tbody.innerHTML="<tr><td colspan='3'>Ingen kommende arrangementer funnet.</td></tr>";
+  }
 }
 
+// JSONP laden
 (function(){
   const s=document.createElement("script");
   s.src=
@@ -199,9 +173,9 @@ function visArrangementer(events){
   document.body.appendChild(s);
 })();
 
-/* ===============================
-   KILDE 2: VISIT SØRLANDET (RSS)
-   =============================== */
+/* =========================================================
+   KILDE 2 — VISIT SØRLANDET RSS (SECUNDAIR, NOOIT BLOKKEREND)
+   ========================================================= */
 (function(){
   const RSS =
     "https://api.rss2json.com/v1/api.json?rss_url=" +
@@ -210,28 +184,27 @@ function visArrangementer(events){
   fetch(RSS)
     .then(r=>r.json())
     .then(data=>{
-      (data.items||[])
-        .filter(i=>
-          /brukt|lopp|marked|bytt|gjenbruk|second|brocante/i.test(
-            (i.title||"") + " " + (i.description||"")
-          )
-        )
-        .forEach(i=>{
-          const d=new Date(i.pubDate);
-          d.setHours(0,0,0,0);
+      (data.items||[]).forEach(i=>{
+        // RSS mag streng zijn
+        if(!/brukt|lopp|marked|bytt|gjenbruk|second|brocante/i.test(
+          (i.title||"")+" "+(i.description||"")
+        )) return;
 
-          alleEvents.push({
-            start:d,
-            end:d,
-            tittel:i.title,
-            tekst:strip(i.description),
-            sted:"Agder",
-            link:i.link,
-            kilde:"Visit Sørlandet"
-          });
+        const d=new Date(i.pubDate);
+        if(isNaN(d)) return;
+        d.setHours(0,0,0,0);
+
+        renderEvent({
+          start:d,
+          tittel:i.title,
+          tekst:strip(i.description),
+          sted:"Agder",
+          link:i.link,
+          kilde:"Visit Sørlandet"
         });
+      });
     })
-    .finally(render); // ✔ render ook hier meteen
+    .catch(()=>{/* stil falen */});
 })();
 </script>
 
